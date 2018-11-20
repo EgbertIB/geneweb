@@ -54,7 +54,7 @@ let compute_ndgen treshold y =
     as long as a date allow you to do so, or until
     the number of generations that should be considered old according
     to latest known date is reached.
-*)
+  *)
 let mark_descendants base scanned old treshold =
   let rec loop p ndgen =
     let p_key_index = get_key_index p in
@@ -162,7 +162,7 @@ let public_all ~mem bname treshold =
       mark_descendants base scanned old treshold p 0
   done;
   ProgrBar.finish () ;
-  let scanned = Array.make nb false in
+  Array.fill scanned 0 nb false ;
   ProgrBar.start () ;
   for i = 0 to nb_of_persons base - 1 do
     ProgrBar.run i nb ;
