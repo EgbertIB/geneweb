@@ -22,6 +22,8 @@
   (libraries %%%GWDB_PKG%%% geneweb)
 )
 
+(library (name gwclib) (wrapped false) (libraries geneweb) (modules gwclib))
+
 #ifdef GWDB1
 (library (name db1link) (wrapped false) (libraries geneweb.gwdb1 geneweb) (modules db1link))
 (rule (copy gwc1/gwc1.ml gwc.ml))
@@ -30,7 +32,7 @@
   (public_name gwc)
   (modules gwc)
   (preprocess (action (run %{bin:cppo} %%%CPPO_D%%% %{input-file})))
-  (libraries geneweb.gwdb1 geneweb geneweb.wserver db1link)
+  (libraries geneweb.gwdb1 geneweb geneweb.wserver gwclib db1link)
 )
 (executable
   (public_name ged2gwb)
@@ -47,7 +49,7 @@
   (public_name gwc)
   (modules gwc)
   (preprocess (action (run %{bin:cppo} %%%CPPO_D%%% %{input-file})))
-  (libraries geneweb.gwdb2 geneweb geneweb.wserver db2link)
+  (libraries geneweb.gwdb2 geneweb geneweb.wserver gwclib db2link)
 )
 (executable
   (public_name ged2gwb)
