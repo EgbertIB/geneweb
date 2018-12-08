@@ -1136,7 +1136,7 @@ let apply_base2 (b : base) = b.apply_base2
 
 let husbands base gp =
   let p = poi base gp.key_index in
-  List.map
+  Array.map
     (fun ifam ->
        let fam = foi base ifam in
        let husband = poi base (get_father fam) in
@@ -1145,14 +1145,14 @@ let husbands base gp =
          List.map (sou base) (get_surnames_aliases husband)
        in
        husband_surname, husband_surnames_aliases)
-    (Array.to_list (get_family p))
+    (get_family p)
 
 let father_titles_places base p nobtit =
   match get_parents (poi base p.key_index) with
-    Some ifam ->
-      let fam = foi base ifam in
-      let fath = poi base (get_father fam) in
-      List.map (fun t -> sou base t.t_place) (nobtit fath)
+  | Some ifam ->
+    let fam = foi base ifam in
+    let fath = poi base (get_father fam) in
+    List.map (fun t -> sou base t.t_place) (nobtit fath)
   | None -> []
 
 let gen_gen_person_misc_names base p nobtit nobtit_fun =
@@ -1161,7 +1161,7 @@ let gen_gen_person_misc_names base p nobtit nobtit_fun =
     (sou p.public_name) (List.map sou p.qualifiers) (List.map sou p.aliases)
     (List.map sou p.first_names_aliases) (List.map sou p.surnames_aliases)
     (List.map (Futil.map_title_strings sou) nobtit)
-    (if p.sex = Female then husbands base p else [])
+    (if p.sex = Female then Array.to_list (husbands base p) else [])
     (father_titles_places base p nobtit_fun)
 
 let gen_person_misc_names base p nobtit =
