@@ -1,5 +1,21 @@
 (* Copyright (c) 1998-2007 INRIA *)
 
+(* FIXME
+
+   Add functions to:
+   - iter / map / fold on collections (persons, families, ...)
+   - fold until a condition is met
+   - loop writer help (next () function)
+   - filter, filter_map
+
+   And also:
+   - add an element to a family
+
+   So we can iper/ifam type can be really abstract and so we
+   do not rely on loops from [0] to [nb_ind] to loop over
+   collections.
+ *)
+
 open Adef
 
 type istr
