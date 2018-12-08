@@ -1,5 +1,9 @@
 (* Copyright (c) 1998-2007 INRIA *)
 
+(* FIXME! Added function to iter / map / fold on collections (persons, families, ...)
+   So we can get rid of the ifam/iper having to be integers
+ *)
+
 open Adef
 
 type istr

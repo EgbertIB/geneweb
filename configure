@@ -28,6 +28,9 @@ while [[ $# -ne 0 ]]; do
     --gwdb2)
       GWDB_D="-D GWDB2" ;
       GWDB_PKG="geneweb.gwdb2" ;;
+    --gwdb3)
+      GWDB_D="-D GWDB3" ;
+      GWDB_PKG="geneweb.gwdb3" ;;
     *)
       echo -e "\\x1b[33m[WARNING]\\x1b[0m Option $1 unknown and ignored.";;
   esac
