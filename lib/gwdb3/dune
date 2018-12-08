@@ -3,7 +3,7 @@
  (public_name geneweb.gwdb3)
  (wrapped false)
  (libraries geneweb.def geneweb.wserver geneweb.util geneweb.io)
- (modules_without_implementation dbdisk)
+ (modules_without_implementation gwdb)
  (flags       (:standard -no-keep-locs))
 )
 
