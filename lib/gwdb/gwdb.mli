@@ -208,8 +208,10 @@ val date_of_last_change : base -> float
 
 module Collection : sig
   type 'a t
+  val length : 'a t -> int
   val map : ('a -> 'b) -> 'a t -> 'b t
   val iter : ('a -> unit) -> 'a t -> unit
+  val iteri : (int -> 'a -> unit) -> 'a t -> unit
   val fold : ('a -> 'b -> 'a) -> 'a -> 'b t -> 'a
   val fold_until : ('a -> bool) -> ('a -> 'b -> 'a) -> 'a -> 'b t -> 'a
 end
