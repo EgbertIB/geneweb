@@ -39,7 +39,6 @@ let select conf base get_date find_oldest =
     | None -> None
   in
   let (q, len) =
-    let ipers = Gwdb.ipers base in
     Gwdb.Collection.fold (fun (q, len) i ->
         let p = pget conf base i in
         match get_date p with
@@ -55,7 +54,7 @@ let select conf base get_date find_oldest =
             if len < n then ((Q.add e q), (len + 1))
             else ((snd (Q.take (Q.add e q))), len)
         | _ -> (q, len)
-      ) (Q.empty, 0) ipers
+      ) (Q.empty, 0) (Gwdb.ipers base)
   in
   let rec loop list q =
     if Q.is_empty q then list, len
@@ -63,6 +62,7 @@ let select conf base get_date find_oldest =
   in
   loop [] q
 
+(* TODO? Factorize with select_person? *)
 let select_family conf base get_date find_oldest =
   let module QF =
     Pqueue.Make
@@ -89,32 +89,30 @@ let select_family conf base get_date find_oldest =
         Some {day = bd; month = bm; year = by; prec = Sure; delta = 0}
     | None -> None
   in
-  let rec loop q len i =
-    if i = nb_of_families base then
-      let rec loop list q =
-        if QF.is_empty q then list, len
-        else let (e, q) = QF.take q in loop (e :: list) q
-      in
-      loop [] q
-    else
-      let fam = foi base (Adef.ifam_of_int i) in
-      if is_deleted_family fam then loop q len (i + 1)
-      else
-        match get_date (Adef.ifam_of_int i) fam with
-          Some (Dgreg (d, cal)) ->
+  let (q, len) =
+    Gwdb.Collection.fold (fun (q, len) i ->
+        let fam = foi base i in
+        if is_deleted_family fam then (q, len)
+        else match get_date i fam with
+          | Some (Dgreg (d, cal)) ->
             let aft =
               match ref_date with
-                Some ref_date -> Date.before_date d ref_date
+              | Some ref_date -> Date.before_date d ref_date
               | None -> false
             in
-            if aft then loop q len (i + 1)
+            if aft then (q, len)
             else
-              let e = Adef.ifam_of_int i, fam, d, cal in
-              if len < n then loop (QF.add e q) (len + 1) (i + 1)
-              else loop (snd (QF.take (QF.add e q))) len (i + 1)
-        | _ -> loop q len (i + 1)
+              let e = i, fam, d, cal in
+              if len < n then (QF.add e q, len + 1)
+              else (snd (QF.take (QF.add e q)), len)
+          | _ -> (q, len)
+      ) (QF.empty, 0) (Gwdb.ifams base)
   in
-  loop QF.empty 0 0
+  let rec loop list q =
+    if QF.is_empty q then list, len
+    else let (e, q) = QF.take q in loop (e :: list) q
+  in
+  loop [] q
 
 let print_birth conf base =
   let (list, len) =
