@@ -119,6 +119,7 @@ let gen_family_of_family = cache_fam (fun f -> f)
 let get_children = cache_des (fun d -> d.Def.children)
 let get_comment = cache_fam (fun f -> f.Def.comment)
 let get_divorce = cache_fam (fun f -> f.Def.divorce)
+let get_fam_index = cache_fam (fun f -> f.Def.fam_index)
 let get_father = cache_cpl (fun c -> Adef.father c)
 let get_fevents = cache_fam (fun f -> f.Def.fevents)
 let get_fsources = cache_fam (fun f -> f.Def.fsources)
@@ -311,3 +312,77 @@ let gen_person_misc_names base p nobtit =
 
 let person_misc_names base p nobtit =
   gen_gen_person_misc_names base (gen_person_of_person p) (nobtit p) nobtit
+
+module Collection = struct
+
+  type 'a t =
+    { length : int
+    ; get : int -> 'a
+    }
+
+  let map (fn : 'a -> 'b) c =
+    { length = c.length
+    ; get = (fun i -> fn (c.get i))
+    }
+
+  let length { length ; _ } = length
+
+  let iter fn { get ; length } =
+    for i = 0 to length - 1 do fn (get i) done
+
+  let iteri fn { get ; length } =
+    for i = 0 to length - 1 do fn i (get i) done
+
+  let fold fn acc { get ; length } =
+    let rec loop acc i =
+      if i = length then acc
+      else loop (fn acc (get i)) (i + 1)
+    in
+    loop acc 0
+
+  let fold_until continue fn acc { get ; length } =
+    let rec loop acc i =
+      if not (continue acc) || i = length then acc
+      else loop (fn acc (get i)) (i + 1)
+    in
+    loop acc 0
+
+end
+
+(* FIXME: this implem only works for full fam/per arrays. Use hashtbl instead so partial
+   collections would still be able to use this marker? *)
+(* Also, if collection is modified during marking stuff, it won't work. *)
+module Marker = struct
+
+  type ('k, 'v) t =
+    { get : 'k -> 'v
+    ; set : 'k -> 'v -> unit
+    }
+
+  let make (k : 'a -> 'k) (c : 'a Collection.t) (i : 'v) : ('a, 'v) t =
+    let a = Array.make c.Collection.length i in
+    { get = (fun x -> Array.get a (k x) )
+    ; set = (fun x v -> Array.set a (k x) v) }
+
+  let get ({ get ; _ } : _ t) k = get k
+  let set ({ set ; _ } : _ t) k = set k
+
+end
+
+let ipers base =
+  { Collection.length = nb_of_persons base
+  ; get = (fun i -> Adef.iper_of_int i) }
+
+let persons base = Collection.map (poi base) (ipers base)
+
+let person_marker c i = Marker.make (fun p -> (Adef.int_of_iper @@ get_key_index p)) c i
+let iper_marker c i = Marker.make Adef.int_of_iper c i
+
+let ifams base =
+  { Collection.length = nb_of_families base
+  ; get = (fun i -> Adef.ifam_of_int i) }
+
+let families base = Collection.map (foi base) (ifams base)
+
+let family_marker c i = Marker.make (fun f -> (Adef.int_of_ifam @@ get_fam_index f)) c i
+let ifam_marker c i = Marker.make Adef.int_of_ifam c i
