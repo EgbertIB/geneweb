@@ -713,7 +713,7 @@ let get_cremation_text conf p p_auth =
 
 let max_ancestor_level conf base ip max_lev =
   let x = ref 0 in
-  let mark = Array.make (nb_of_persons base) false in
+  let mark = Gwdb.iper_marker (Gwdb.ipers base) false in
 #ifdef API
   (* Charge le cache des LIA. *)
   (* On limite à 10 le nombre de générations ascendantes à charger pour les LIA. *)
@@ -722,16 +722,13 @@ let max_ancestor_level conf base ip max_lev =
   let rec loop level ip =
     (* Ne traite pas l'index s'il a déjà été traité. *)
     (* Pose surement probleme pour des implexes. *)
-    if mark.(Adef.int_of_iper ip) then ()
-    else
-      begin
+    if not @@ Gwdb.Marker.get mark ip then begin
         (* Met à jour le tableau d'index pour indiquer que l'index est traité. *)
-        mark.(Adef.int_of_iper ip) <- true;
+        Gwdb.Marker.set mark ip true ;
         x := max !x level;
-        if !x = max_lev then ()
-        else
+        if !x <> max_lev then
           match get_parents (pget conf base ip) with
-            Some ifam ->
+          | Some ifam ->
               let cpl = foi base ifam in
               loop (succ level) (get_father cpl);
               loop (succ level) (get_mother cpl)
