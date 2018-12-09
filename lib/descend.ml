@@ -48,30 +48,29 @@ let descendants_title conf base p h =
 let display_descendants_level conf base max_level ancestor =
   let max_level = min (Perso.limit_desc conf) max_level in
   let (levt, _) = Perso.make_desc_level_table conf base max_level ancestor in
-  let mark = Array.make (Array.length levt) false in
+  let mark = Gwdb.iper_marker (Gwdb.ipers base) false in
   let rec get_level level u list =
-    List.fold_left
+    Array.fold_left
       (fun list ifam ->
          let des = foi base ifam in
          let enfants = get_children des in
-         List.fold_left
+         Array.fold_left
            (fun list ix ->
               let x = pget conf base ix in
-              if mark.(Adef.int_of_iper ix) then list
+              if Gwdb.Marker.get mark ix then list
               else
-                let _ = mark.(Adef.int_of_iper ix) <- true in
-                if levt.(Adef.int_of_iper ix) > max_level then list
+                let _ = Gwdb.Marker.set mark ix true in
+                if Gwdb.Marker.get levt ix > max_level then list
                 else if level = max_level then
-                  if p_first_name base x = "x" ||
-                     levt.(Adef.int_of_iper ix) != level
-                  then
-                    list
+                  if p_first_name base x = "x"
+                  || Gwdb.Marker.get levt ix != level
+                  then list
                   else x :: list
                 else if level < max_level then
                   get_level (succ level) (pget conf base ix) list
                 else list)
-           list (Array.to_list enfants))
-      list (Array.to_list (get_family u))
+           list enfants)
+      list (get_family u)
   in
   let len = ref 0 in
   let list = get_level 1 (pget conf base (get_key_index ancestor)) [] in

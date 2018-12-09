@@ -787,8 +787,8 @@ let make_desc_level_table conf base max_level p =
   in
   (* the table 'levt' may be not necessary, since I added 'flevt'; kept
      because '%max_desc_level;' is still used... *)
-  let levt = Array.make (nb_of_persons base) infinite in
-  let flevt = Array.make (nb_of_families base) infinite in
+  let levt = Gwdb.iper_marker (Gwdb.ipers base) infinite in
+  let flevt = Gwdb.ifam_marker (Gwdb.ifams base) infinite in
   let get = pget conf base in
   let ini_ip = get_key_index p in
   let rec fill lev =
@@ -798,23 +798,23 @@ let make_desc_level_table conf base max_level p =
         let new_ipl =
           List.fold_left
             (fun ipl ip ->
-               if levt.(Adef.int_of_iper ip) <= lev then ipl
+               if Gwdb.Marker.get levt ip <= lev then ipl
                else if lev <= max_level then
                  begin
-                   levt.(Adef.int_of_iper ip) <- lev;
+                   Gwdb.Marker.set levt ip lev ;
                    let down =
                      if ip = ini_ip then true
                      else
                        match line with
-                         Male -> get_sex (pget conf base ip) <> Female
+                       | Male -> get_sex (pget conf base ip) <> Female
                        | Female -> get_sex (pget conf base ip) <> Male
                        | Neuter -> true
                    in
                    if down then
                      Array.fold_left
                        (fun ipl ifam ->
-                          if flevt.(Adef.int_of_ifam ifam) <= lev then ()
-                          else flevt.(Adef.int_of_ifam ifam) <- lev;
+                          if not (Gwdb.Marker.get flevt ifam <= lev)
+                          then Gwdb.Marker.set flevt ifam lev ;
                           let ipa = get_children (foi base ifam) in
                           Array.fold_left (fun ipl ip -> ip :: ipl) ipl ipa)
                        ipl (get_family (get ip))
@@ -825,18 +825,18 @@ let make_desc_level_table conf base max_level p =
         in
         fill (succ lev) new_ipl
   in
-  fill 0 [ini_ip]; levt, flevt
+  fill 0 [ini_ip];
+  levt, flevt
 
-let desc_level_max desc_level_table_l =
+let desc_level_max base desc_level_table_l =
   let (levt, _) = Lazy.force desc_level_table_l in
-  let x = ref 0 in
-  for i = 0 to Array.length levt - 1 do
-    let lev = levt.(i) in if lev != infinite && !x < lev then x := lev
-  done;
-  !x
+  Gwdb.Collection.fold (fun acc i ->
+      let lev = Gwdb.Marker.get levt i in
+      if lev != infinite && acc < lev then lev else acc
+    ) 0 (Gwdb.ipers base)
 
-let max_descendant_level desc_level_table_l =
-  desc_level_max desc_level_table_l
+let max_descendant_level base desc_level_table_l =
+  desc_level_max base desc_level_table_l
 
 (* ancestors by list *)
 
@@ -1671,7 +1671,7 @@ type 'a env =
   | Vcell of cell
   | Vcelll of cell list
   | Vcnt of int ref
-  | Vdesclevtab of (int array * int array) Lazy.t
+  | Vdesclevtab of ((iper, int) Marker.t * (ifam, int) Marker.t) lazy_t
   | Vdmark of bool array ref
   | Vslist of SortedList.t ref
   | Vslistlm of string list list
@@ -2400,9 +2400,9 @@ and eval_simple_str_var conf base env (_, p_auth) =
       begin match get_env "desc_level_table" env with
         Vdesclevtab levt ->
           let (_, flevt) = Lazy.force levt in
-          for i = 0 to Array.length flevt - 1 do
-            flevt.(i) <- flevt_save.(i)
-          done;
+          Gwdb.Collection.iter (fun i ->
+              Gwdb.Marker.set flevt i (Gwdb.Marker.get flevt_save i)
+            ) (Gwdb.ifams base) ;
           ""
       | _ -> raise Not_found
       end
@@ -2611,13 +2611,16 @@ and eval_compound_var conf base env (a, _ as ep) loc =
       | _ -> raise Not_found
       end
   | "number_of_descendants" :: sl ->
+      (* FIXME: what is the difference with number_of_descendants_at_level??? *)
       begin match get_env "level" env with
         Vint i ->
           begin match get_env "desc_level_table" env with
             Vdesclevtab t ->
-              let cnt =
-                Array.fold_left (fun cnt v -> if v <= i then cnt + 1 else cnt)
-                  0 (fst (Lazy.force t))
+            let m = fst (Lazy.force t) in
+            let cnt =
+              Gwdb.Collection.fold (fun cnt ip ->
+                  if Gwdb.Marker.get m ip <= i then cnt + 1 else cnt
+                ) 0 (Gwdb.ipers base)
               in
               VVstring (eval_num conf (Sosa.of_int (cnt - 1)) sl)
           | _ -> raise Not_found
@@ -2629,11 +2632,13 @@ and eval_compound_var conf base env (a, _ as ep) loc =
         Vint i ->
           begin match get_env "desc_level_table" env with
             Vdesclevtab t ->
-              let cnt =
-                Array.fold_left (fun cnt v -> if v = i then cnt + 1 else cnt)
-                  0 (fst (Lazy.force t))
+            let m = fst (Lazy.force t) in
+            let cnt =
+              Gwdb.Collection.fold (fun cnt ip ->
+                  if Gwdb.Marker.get m ip <= i then cnt + 1 else cnt
+                ) 0 (Gwdb.ipers base)
               in
-              VVstring (eval_num conf (Sosa.of_int cnt) sl)
+              VVstring (eval_num conf (Sosa.of_int (cnt - 1)) sl)
           | _ -> raise Not_found
           end
       | _ -> raise Not_found
@@ -4616,7 +4621,7 @@ and eval_str_family_field env (ifam, _, _, _) =
       begin match get_env "desc_level_table" env with
         Vdesclevtab levt ->
           let (_, flevt) = Lazy.force levt in
-          string_of_int flevt.(Adef.int_of_ifam ifam)
+          string_of_int (Gwdb.Marker.get flevt ifam)
       | _ -> raise Not_found
       end
   | "index" -> string_of_int (Adef.int_of_ifam ifam)
@@ -4624,7 +4629,7 @@ and eval_str_family_field env (ifam, _, _, _) =
       begin match get_env "desc_level_table" env with
         Vdesclevtab levt ->
           let (_, flevt) = Lazy.force levt in
-          flevt.(Adef.int_of_ifam ifam) <- infinite; ""
+          Gwdb.Marker.set flevt ifam infinite; ""
       | _ -> raise Not_found
       end
   | _ -> raise Not_found
@@ -5948,12 +5953,12 @@ let gen_interp_templ menu title templ_fname conf base p =
            (Perso_link.max_interlinks_descendancy_level conf base
               (get_key_index p) 10))
 #else
-      Vint (max_descendant_level desc_level_table_l)
+      Vint (max_descendant_level base desc_level_table_l)
 #endif
     in
     (* Static max descendant level *)
     let smdl () =
-      Vint (max_descendant_level desc_level_table_m)
+      Vint (max_descendant_level base desc_level_table_m)
     in
     let nldb () =
       let bdir = Util.base_path [] (conf.bname ^ ".gwb") in

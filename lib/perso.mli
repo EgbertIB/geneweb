@@ -74,8 +74,13 @@ val get_link : generation_person list -> IperSet.elt -> generation_person option
 
 val infinite : int
 val limit_desc : config -> int
-val make_desc_level_table :
-  config -> base -> int -> person -> int array * int array
+val make_desc_level_table
+  : config
+  -> base
+  -> int
+  -> person
+  -> (IperSet.elt, int) Gwdb.Marker.t * (Def.ifam, int) Gwdb.Marker.t
+
 val default_max_cousin_lev : int
 
 type dup =
