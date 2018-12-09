@@ -557,33 +557,29 @@ let make_population_pyramid ~nb_intervals ~interval ~limit ~at_date conf base =
   let men = Array.make (nb_intervals + 1) 0 in
   let wom = Array.make (nb_intervals + 1) 0 in
   (* TODO? Load person array *)
-  for i = 0 to nb_of_persons base - 1 do
-    let p = pget conf base (Adef.iper_of_int i) in
-    let sex = get_sex p in
-    let dea = get_death p in
-    if sex <> Neuter then
-      match Adef.od_of_cdate (get_birth p) with
-        Some (Dgreg (dmy, _)) ->
-        if not (Date.before_date dmy at_date) then
-          let a = CheckItem.time_elapsed dmy at_date in
-          let j = min nb_intervals (a.year / interval) in
-          let ok =
-            if dea = NotDead || dea = DontKnowIfDead && a.year < limit then
-              true
-            else
-              match dea with
-                Death (_, cd) ->
-                begin match Adef.date_of_cdate cd with
-                    Dgreg (d, _) -> Date.before_date d at_date
-                  | _ -> false
-                end
-              | _ -> false
-          in
-          if ok then
-            if sex = Male then men.(j) <- men.(j) + 1
-            else wom.(j) <- wom.(j) + 1
-      | Some (Dtext _) | None -> ()
-  done;
+  Gwdb.Collection.iter (fun i ->
+      let p = pget conf base i in
+      let sex = get_sex p in
+      let dea = get_death p in
+      if sex <> Neuter then
+        match Adef.od_of_cdate (get_birth p) with
+        | Some (Dgreg (dmy, _)) ->
+          if not (Date.before_date dmy at_date) then
+            let a = CheckItem.time_elapsed dmy at_date in
+            let j = min nb_intervals (a.year / interval) in
+            if (dea = NotDead || dea = DontKnowIfDead && a.year < limit)
+            || match dea with
+            | Death (_, cd) ->
+              begin match Adef.date_of_cdate cd with
+                | Dgreg (d, _) -> Date.before_date d at_date
+                | _ -> false
+              end
+            | _ -> false
+            then
+              if sex = Male then men.(j) <- men.(j) + 1
+              else wom.(j) <- wom.(j) + 1
+        | Some (Dtext _) | None -> ()
+    ) (Gwdb.ipers base) ;
   (men, wom)
 
 let print_population_pyramid conf base =
