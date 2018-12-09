@@ -1,4 +1,3 @@
-(* $Id: consang.ml,v 5.13 2007-02-21 18:14:01 ddr Exp $ *)
 (* Copyright (c) 1998-2007 INRIA *)
 
 (* Algorithm relationship and links from Didier Remy *)
@@ -45,30 +44,31 @@ let new_mark () = incr mark; !mark
 type visit = NotVisited | BeingVisited | Visited
 
 let check_noloop base error =
-  let tab = Array.make (nb_of_persons base) NotVisited in
+  let persons = Gwdb.ipers base in
+  let tab = Gwdb.iper_marker persons NotVisited in
   let rec noloop i =
-    match tab.(i) with
-      NotVisited ->
-        begin match get_parents (poi base (Adef.iper_of_int i)) with
-          Some ifam ->
-            let fam = foi base ifam in
-            let fath = get_father fam in
-            let moth = get_mother fam in
-            tab.(i) <- BeingVisited;
-            noloop (Adef.int_of_iper fath);
-            noloop (Adef.int_of_iper moth)
+    match Gwdb.Marker.get tab i with
+    | NotVisited ->
+      begin match get_parents (poi base i) with
+        | Some ifam ->
+          let fam = foi base ifam in
+          let fath = get_father fam in
+          let moth = get_mother fam in
+          Gwdb.Marker.set tab i BeingVisited ;
+          noloop fath ;
+          noloop moth
         | None -> ()
-        end;
-        tab.(i) <- Visited
-    | BeingVisited -> error (OwnAncestor (poi base (Adef.iper_of_int i)))
+      end ;
+      Gwdb.Marker.set tab i Visited
+    | BeingVisited -> error (OwnAncestor (poi base i))
     | Visited -> ()
   in
-  for i = 0 to nb_of_persons base - 1 do
-    match tab.(i) with
-      NotVisited -> noloop i
-    | BeingVisited -> failwith "check_noloop algorithm error"
-    | Visited -> ()
-  done
+  Gwdb.Collection.iter (fun i ->
+      match Gwdb.Marker.get tab i with
+      | NotVisited -> noloop i
+      | BeingVisited -> failwith "check_noloop algorithm error"
+      | Visited -> ()
+    ) persons
 
 exception TopologicalSortError of person
 
