@@ -1,4 +1,3 @@
-(* $Id: birthDeath.ml,v 5.40 2008-11-03 15:40:10 ddr Exp $ *)
 (* Copyright (c) 1998-2007 INRIA *)
 
 open Config
@@ -39,30 +38,30 @@ let select conf base get_date find_oldest =
         Some {day = bd; month = bm; year = by; prec = Sure; delta = 0}
     | None -> None
   in
-  let rec loop q len i =
-    if i = nb_of_persons base then
-      let rec loop list q =
-        if Q.is_empty q then list, len
-        else let (e, q) = Q.take q in loop (e :: list) q
-      in
-      loop [] q
-    else
-      let p = pget conf base (Adef.iper_of_int i) in
-      match get_date p with
-        Some (Dgreg (d, cal)) ->
+  let (q, len) =
+    let ipers = Gwdb.ipers base in
+    Gwdb.Collection.fold (fun (q, len) i ->
+        let p = pget conf base i in
+        match get_date p with
+        | Some (Dgreg (d, cal)) ->
           let aft =
             match ref_date with
-              Some ref_date -> Date.before_date d ref_date
+            | Some ref_date -> Date.before_date d ref_date
             | None -> false
           in
-          if aft then loop q len (i + 1)
+          if aft then (q, len)
           else
             let e = p, d, cal in
-            if len < n then loop (Q.add e q) (len + 1) (i + 1)
-            else loop (snd (Q.take (Q.add e q))) len (i + 1)
-      | _ -> loop q len (i + 1)
+            if len < n then ((Q.add e q), (len + 1))
+            else ((snd (Q.take (Q.add e q))), len)
+        | _ -> (q, len)
+      ) (Q.empty, 0) ipers
   in
-  loop Q.empty 0 0
+  let rec loop list q =
+    if Q.is_empty q then list, len
+    else let (e, q) = Q.take q in loop (e :: list) q
+  in
+  loop [] q
 
 let select_family conf base get_date find_oldest =
   let module QF =
