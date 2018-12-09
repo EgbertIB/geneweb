@@ -158,12 +158,11 @@ let print_anniversary_list conf base dead_people dt liste =
   Wserver.printf "</ul>\n"
 
 let f_scan conf base =
-  let i = ref (-1) in
-  fun () ->
-    incr i;
-    if !i < nb_of_persons base then
-      pget conf base (Adef.iper_of_int !i), referenced_person_title_text
-    else raise Not_found
+  let next = Gwdb.Collection.iterator (Gwdb.ipers base) in
+  fun () -> match next () with
+    | Some i -> (pget conf base i, referenced_person_title_text)
+    | None -> raise Not_found
+
 let print_birth conf base mois =
   gen_print conf base mois (f_scan conf base) false
 let print_dead conf base mois =

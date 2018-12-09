@@ -347,6 +347,15 @@ module Collection = struct
     in
     loop acc 0
 
+  let iterator { get ; length } =
+    let cursor = ref 0 in
+    fun () ->
+      if !cursor < length then
+        let v = Some (get !cursor) in
+        let () = incr cursor in
+        v
+      else None
+
 end
 
 (* FIXME: this implem only works for full fam/per arrays. Use hashtbl instead so partial

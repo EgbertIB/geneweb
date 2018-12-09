@@ -214,6 +214,7 @@ module Collection : sig
   val iteri : (int -> 'a -> unit) -> 'a t -> unit
   val fold : ('a -> 'b -> 'a) -> 'a -> 'b t -> 'a
   val fold_until : ('a -> bool) -> ('a -> 'b -> 'a) -> 'a -> 'b t -> 'a
+  val iterator : 'a t -> (unit -> 'a option)
 end
 
 module Marker : sig
