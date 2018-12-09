@@ -349,12 +349,12 @@ let check_base base error warning def changed_p pr_stats =
   in
   let current_year = (Unix.localtime (Unix.time ())).Unix.tm_year + 1900 in
   check_base_aux base error warning changed_p;
-  for i = 0 to nb_of_persons base - 1 do
-    let p = poi base (Adef.iper_of_int i) in
+  Gwdb.Collection.iter (fun i ->
+    let p = poi base i in
     if not (def i) then Printf.printf "Undefined: %s\n" (designation base p);
     if pr_stats then update_stats base current_year s p;
     flush stdout
-  done;
+    ) (Gwdb.ipers base) ;
   if pr_stats then
     begin
       Printf.printf "\n";
