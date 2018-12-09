@@ -409,13 +409,11 @@ let gen_print_menu_birth conf base f_scan mode =
   Hutil.trailer conf
 
 let print_menu_birth conf base =
-  let i = ref (-1) in
-  let nb_per = nb_of_persons base in
-  let f_scan () =
-    incr i;
-    if !i < nb_per then
-      pget conf base (Adef.iper_of_int !i), referenced_person_title_text
-    else raise Not_found
+  let f_scan =
+    let next = Gwdb.Collection.iterator (Gwdb.ipers base) in
+    fun () -> match next () with
+      | Some i -> (pget conf base i, referenced_person_title_text)
+      | None -> raise Not_found
   in
   let mode () =
     Wserver.printf "<input type=\"hidden\" name=\"m\" value=\"AN\"%s>\n"
