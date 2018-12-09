@@ -266,22 +266,21 @@ let print_marriage conf base month =
   let tab = Array.make 31 [] in
   Hutil.header conf title;
   Hutil.print_link_to_welcome conf true;
-  for i = 0 to nb_of_families base - 1 do
-    let fam = foi base (Adef.ifam_of_int i) in
-    if is_deleted_family fam then ()
-    else
+  Gwdb.Collection.iter (fun ifam ->
+    let fam = foi base ifam in
+    if not (is_deleted_family fam) then
       match Adef.od_of_cdate (get_marriage fam) with
-        Some (Dgreg ({day = d; month = m; year = y; prec = Sure}, _))
+      | Some (Dgreg ({day = d; month = m; year = y; prec = Sure}, _))
         when d <> 0 && m <> 0 ->
-          let father = pget conf base (get_father fam) in
-          let mother = pget conf base (get_mother fam) in
-          if m = month && authorized_age conf base father &&
-             not (is_hidden father) && authorized_age conf base mother &&
-             not (is_hidden mother)
-          then
-            tab.(pred d) <- (fam, y) :: tab.(pred d)
+        let father = pget conf base (get_father fam) in
+        let mother = pget conf base (get_mother fam) in
+        if m = month && authorized_age conf base father
+           && not (is_hidden father) && authorized_age conf base mother
+           && not (is_hidden mother)
+        then
+          tab.(pred d) <- (fam, y) :: tab.(pred d)
       | _ -> ()
-  done;
+    ) (Gwdb.ifams base) ;
   Wserver.printf "<ul>";
   for i = 1 to 31 do
     match tab.(i-1) with
