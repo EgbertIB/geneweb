@@ -306,7 +306,8 @@ let build_sosa_tree_ht conf base person =
   let () = load_ascends_array base in
   let () = load_couples_array base in
   let nb_persons = nb_of_persons base in
-  let mark = Array.make nb_persons false in
+  let ipers = Gwdb.ipers base in
+  let mark = Gwdb.iper_marker ipers false in
   (* Tableau qui va socker au fur et à mesure les ancêtres du person. *)
   (* Attention, on créé un tableau de la longueur de la base + 1 car on *)
   (* commence à l'indice 1 !                                            *)
@@ -331,20 +332,19 @@ let build_sosa_tree_ht conf base person =
               let cpl = foi base ifam in
               let z = Sosa.twice sosa_num in
               let len =
-                if not mark.(Adef.int_of_iper (get_father cpl)) then
+                if not @@ Gwdb.Marker.get mark (get_father cpl) then
                   begin
                     Array.set sosa_accu (len + 1) (z, get_father cpl);
-                    mark.(Adef.int_of_iper (get_father cpl)) <- true;
+                    Gwdb.Marker.set mark (get_father cpl) true;
                     len + 1
                   end
                 else len
               in
               let len =
-                if not mark.(Adef.int_of_iper (get_mother cpl)) then
+                if not @@ Gwdb.Marker.get mark (get_mother cpl) then
                   begin
-                    Array.set sosa_accu (len + 1)
-                      (Sosa.inc z 1, get_mother cpl);
-                    mark.(Adef.int_of_iper (get_mother cpl)) <- true;
+                    Array.set sosa_accu (len + 1) (Sosa.inc z 1, get_mother cpl);
+                    Gwdb.Marker.set mark (get_mother cpl) true ;
                     len + 1
                   end
                 else len
