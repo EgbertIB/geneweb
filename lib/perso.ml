@@ -165,8 +165,8 @@ let print_base_loop conf base p =
 
 (* Type pour ne pas créer à chaque fois un tableau tstab et mark *)
 type sosa_t =
-  { tstab : int array;
-    mark : bool array;
+  { tstab : (iper, int) Gwdb.Marker.t;
+    mark : (iper, bool) Gwdb.Marker.t;
     mutable last_zil : (Def.iper * Sosa.t) list;
     sosa_ht : (Def.iper, (Sosa.t * Gwdb.person) option) Hashtbl.t }
 
@@ -177,7 +177,8 @@ let init_sosa_t conf base sosa_ref =
         let title _ = Wserver.printf "%s" (capitale (transl conf "error")) in
         Hutil.rheader conf title; print_base_loop conf base p
   in
-  let mark = Array.make (nb_of_persons base) false in
+  let persons = Gwdb.ipers base in
+  let mark = Gwdb.iper_marker persons false in
   let last_zil = [get_key_index sosa_ref, Sosa.one] in
   let sosa_ht = Hashtbl.create 5003 in
   let () =
@@ -199,12 +200,12 @@ let find_sosa_aux conf base a p t_sosa =
     | (ip, z) :: zil ->
         let _ = cache := (ip, z) :: !cache in
         if ip = get_key_index a then Right z
-        else if t_sosa.mark.(Adef.int_of_iper ip) then gene_find zil
+        else if Gwdb.Marker.get t_sosa.mark ip then gene_find zil
         else
           begin
-            t_sosa.mark.(Adef.int_of_iper ip) <- true;
-            if t_sosa.tstab.(Adef.int_of_iper (get_key_index a)) <=
-                 t_sosa.tstab.(Adef.int_of_iper ip)
+            Gwdb.Marker.set t_sosa.mark ip true;
+            if Gwdb.Marker.get t_sosa.tstab (get_key_index a)
+               <= Gwdb.Marker.get t_sosa.tstab ip
             then
               let _ = has_ignore := true in gene_find zil
             else
@@ -232,7 +233,7 @@ let find_sosa_aux conf base a p t_sosa =
       Left [] ->
         let _ =
           List.iter
-            (fun (ip, _) -> Array.set t_sosa.mark (Adef.int_of_iper ip) false)
+            (fun (ip, _) -> Gwdb.Marker.set t_sosa.mark ip false)
             !cache
         in
         None
@@ -250,7 +251,7 @@ let find_sosa_aux conf base a p t_sosa =
     | Right z ->
         let _ =
           List.iter
-            (fun (ip, _) -> Array.set t_sosa.mark (Adef.int_of_iper ip) false)
+            (fun (ip, _) -> Gwdb.Marker.set t_sosa.mark ip false)
             !cache
         in
         Some (z, p)
@@ -1687,7 +1688,7 @@ type 'a env =
   | Vstring of string
   | Vsosa_ref of person option Lazy.t
   | Vsosa of (iper * (Sosa.t * person) option) list ref
-  | Vt_sosa of sosa_t
+  | Vt_sosa of sosa_t option
   | Vtitle of person * title_item
   | Vevent of person * event_item
   | Vlazyp of string option ref
@@ -1776,8 +1777,8 @@ let get_sosa conf base env r p =
         match get_env "sosa_ref" env with
           Vsosa_ref v ->
             begin match get_env "t_sosa" env with
-              Vt_sosa t_sosa -> find_sosa conf base p v t_sosa
-            | _ -> None
+              | Vt_sosa (Some t_sosa) -> find_sosa conf base p v t_sosa
+              | _ -> None
             end
         | _ -> None
       in
@@ -5914,10 +5915,8 @@ let gen_interp_templ menu title templ_fname conf base p =
     let sosa_ref_l = let sosa_ref () = sosa_ref in Lazy.from_fun sosa_ref in
     let t_sosa =
       match sosa_ref with
-        Some p -> init_sosa_t conf base p
-      | _ ->
-          {tstab = [| |]; mark = [| |]; last_zil = [];
-           sosa_ht = Hashtbl.create 1}
+      | Some p -> Some (init_sosa_t conf base p)
+      | _ -> None
     in
     let desc_level_table_l =
       let dlt () = make_desc_level_table conf base emal p in Lazy.from_fun dlt

@@ -2556,7 +2556,7 @@ let create_topological_sort conf base =
       let () = load_ascends_array base in
       let () = load_couples_array base in
       Consang.topological_sort base (pget conf)
-  | Some "no_tstab" -> Array.make (nb_of_persons base) 0
+  | Some "no_tstab" -> Gwdb.iper_marker (Gwdb.ipers base) 0
   | _ ->
       let bfile = base_path [] (conf.bname ^ ".gwb") in
       Lock.control (Mutil.lock_file bfile) false
