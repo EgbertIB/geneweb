@@ -521,12 +521,11 @@ let print_menu_marriage conf base =
   let list_aft = ref [] in
   Hutil.header conf title;
   Hutil.print_link_to_welcome conf true;
-  for i = 0 to nb_of_families base - 1 do
-    let fam = foi base (Adef.ifam_of_int i) in
-    if is_deleted_family fam then ()
-    else
+  Gwdb.Collection.iter (fun ifam ->
+    let fam = foi base ifam in
+    if not @@ is_deleted_family fam then
       match Adef.od_of_cdate (get_marriage fam), get_divorce fam with
-        Some (Dgreg (d, _)), NotDivorced
+      | Some (Dgreg (d, _)), NotDivorced
         when d.day <> 0 && d.month <> 0 && d.prec = Sure ->
           let update_list cpl =
             if match_mar_dates conf base cpl d conf.today then
@@ -543,7 +542,7 @@ let print_menu_marriage conf base =
                update_list fam)
           else update_list fam
       | _ -> ()
-  done;
+    ) (Gwdb.ifams base) ;
   List.iter
     (fun xx -> xx := List.sort (fun (_, y1) (_, y2) -> compare y1 y2) !xx)
     [list_tod; list_tom; list_aft];
