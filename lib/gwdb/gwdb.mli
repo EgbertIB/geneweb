@@ -205,3 +205,30 @@ val p_first_name : base -> person -> string
 val p_surname : base -> person -> string
 
 val date_of_last_change : base -> float
+
+module Collection : sig
+  type 'a t
+  val length : 'a t -> int
+  val map : ('a -> 'b) -> 'a t -> 'b t
+  val iter : ('a -> unit) -> 'a t -> unit
+  val iteri : (int -> 'a -> unit) -> 'a t -> unit
+  val fold : ('a -> 'b -> 'a) -> 'a -> 'b t -> 'a
+  val fold_until : ('a -> bool) -> ('a -> 'b -> 'a) -> 'a -> 'b t -> 'a
+  val iterator : 'a t -> (unit -> 'a option)
+end
+
+module Marker : sig
+  type ('k, 'v) t
+  val get : ('k, 'v) t -> 'k -> 'v
+  val set : ('k, 'v) t -> 'k -> 'v -> unit
+end
+
+val ipers : base -> iper Collection.t
+val persons : base -> person Collection.t
+val ifams : base -> ifam Collection.t
+val families : base -> family Collection.t
+
+val person_marker : person Collection.t -> 'a -> (person, 'a) Marker.t
+val iper_marker : iper Collection.t -> 'a -> (iper, 'a) Marker.t
+val family_marker : family Collection.t -> 'a -> (family, 'a) Marker.t
+val ifam_marker : ifam Collection.t -> 'a -> (ifam, 'a) Marker.t
