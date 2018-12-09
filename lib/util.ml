@@ -2575,7 +2575,10 @@ let create_topological_sort conf base =
                let ic = Secure.open_in_bin tstab_file in
                let r =
                  try Some (Marshal.from_channel ic)
-                 with End_of_file | Failure _ -> None
+                 with End_of_file | Failure _ ->
+                   (* tstab is probably corrupted *)
+                   Sys.remove tstab_file ;
+                   None
                in
                close_in ic; r
              with Sys_error _ -> None
@@ -2592,7 +2595,8 @@ let create_topological_sort conf base =
              begin
                try
                  let oc = Secure.open_out_bin tstab_file in
-                 Marshal.to_channel oc tstab [Marshal.No_sharing];
+                 Marshal.to_channel oc tstab
+                   [ Marshal.No_sharing ; Marshal.Closures ] ;
                  close_out oc
                with Sys_error _ -> ()
              end;
