@@ -382,7 +382,7 @@ let string_of_ondate_aux conf =
         Sure -> s ^ " " ^ " (" ^ gregorian_precision conf d ^ ")"
       | About | Before | After | Maybe | OrYear _ | YearInt _ -> s
     end
-  | Dtext t -> "(" ^ string_with_macros conf [] t ^ ")"
+  | Dtext t -> "(" ^ Util.safe_html (string_with_macros conf [] t) ^ ")"
 
 let string_of_ondate conf d =
   Util.translate_eval (string_of_ondate_aux conf d)
@@ -390,7 +390,7 @@ let string_of_ondate conf d =
 let string_of_date conf =
   function
     Dgreg (d, _) -> string_of_dmy conf d
-  | Dtext t -> t
+  | Dtext t -> Util.safe_html t
 
 let string_of_date_aux conf sep =
   function
@@ -443,7 +443,7 @@ let string_of_date_aux conf sep =
         Sure -> s ^ sep ^ " (" ^ gregorian_precision conf d ^ ")"
       | About | Before | After | Maybe | OrYear _ | YearInt _ -> s
     end
-  | Dtext t -> "(" ^ string_with_macros conf [] t ^ ")"
+  | Dtext t -> "(" ^ Util.safe_html (string_with_macros conf [] t) ^ ")"
 
 (* ********************************************************************** *)
 (*  [Fonc] string_of_date_sep : config -> Def.date -> string -> string    *)
@@ -506,7 +506,7 @@ let string_slash_of_date conf date =
     let d1 = Calendar.french_of_gregorian d in
     slashify_dmy (translate_dmy conf (decode_dmy conf d1) Dhebrew true) d1 ^
     " (" ^ transl_nth conf "gregorian/julian/french/hebrew" 3 ^ ")"
-  | Dtext t -> t
+  | Dtext t -> Util.safe_html t
 
 let string_of_age conf a =
   match a with
