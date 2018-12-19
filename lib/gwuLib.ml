@@ -43,12 +43,13 @@ module Make (Select : Select) =
 
     let prepare_free_occ base =
       (* Parce qu'on est obligé ... *)
-      let sn = "?" in
-      let fn = "?" in
-      let key = Name.lower fn ^ " #@# " ^ Name.lower sn in
-      Hashtbl.add ht_orig_occ key [0];
-      for i = 0 to nb_of_persons base - 1 do
-        let ip = Adef.iper_of_int i in
+      (* FIXME!!!!!!! *)
+      (* let sn = "?" in
+       * let fn = "?" in
+       * let key = Name.lower fn ^ " #@# " ^ Name.lower sn in
+       * Hashtbl.add ht_orig_occ key [0]; *)
+      let ipers = Gwdb.ipers base in
+      Gwdb.Collection.iter (fun ip ->
         let p = poi base ip in
         let sn = sou base (get_surname p) in
         let fn = sou base (get_first_name p) in
@@ -64,7 +65,8 @@ module Make (Select : Select) =
               if List.mem occ l then Hashtbl.add ht_dup_occ ip occ
               else Hashtbl.replace ht_orig_occ key (occ :: l)
             with Not_found -> Hashtbl.add ht_orig_occ key [occ]
-      done;
+        )
+        ipers ;
       Hashtbl.iter
         (fun key l -> Hashtbl.replace ht_orig_occ key (List.sort compare l))
         ht_orig_occ;
@@ -1464,8 +1466,7 @@ module Make (Select : Select) =
       let rec loop top p =
         for i = 0 to Array.length (get_family p) - 1 do
           let ifam = (get_family p).(i) in
-          match mark.(Adef.int_of_ifam ifam) with
-            NotScanned ->
+          if Gwdb.Marker.get mark ifam = NotScanned then begin
               let ifaml =
                 connected_families base (fun _ -> true) ifam (foi base ifam)
               in
@@ -1477,16 +1478,15 @@ module Make (Select : Select) =
                        (get_children desc))
                   [] ifaml
               in
-              if top ||
-                 List.exists (fun p -> eq_istr (get_surname p) surn) children
+              if top || List.exists (fun p -> eq_istr (get_surname p) surn) children
               then
                 begin
                   List.iter
-                    (fun ifam -> mark.(Adef.int_of_ifam ifam) <- ToSeparate)
+                    (fun ifam -> Gwdb.Marker.set mark ifam ToSeparate)
                     ifaml;
                   List.iter (loop false) children
                 end
-          | _ -> ()
+            end
         done
       in
       loop true p
@@ -1548,11 +1548,11 @@ module Make (Select : Select) =
     let mark_one_connex_component base mark ifam =
       let origin_file = sou base (get_origin_file (foi base ifam)) in
       let test_action loop len ifam =
-        if mark.(Adef.int_of_ifam ifam) = NotScanned &&
+        if Gwdb.Marker.get mark ifam = NotScanned &&
            sou base (get_origin_file (foi base ifam)) = origin_file
         then
           begin
-            mark.(Adef.int_of_ifam ifam) <- BeingScanned;
+            Gwdb.Marker.set mark ifam BeingScanned;
             loop (len + 1) ifam
           end
         else len
@@ -1561,8 +1561,8 @@ module Make (Select : Select) =
       let len = 1 + scan_connex_component base test_action 0 ifam in
       let set_mark x =
         let test_action loop () ifam =
-          if mark.(Adef.int_of_ifam ifam) = BeingScanned then
-            begin mark.(Adef.int_of_ifam ifam) <- x; loop () ifam end
+          if Gwdb.Marker.get mark ifam = BeingScanned then
+            begin Gwdb.Marker.set mark ifam x; loop () ifam end
         in
         test_action (fun _ _ -> ()) () ifam;
         scan_connex_component base test_action () ifam
@@ -1583,35 +1583,35 @@ module Make (Select : Select) =
 
     let mark_connex_components base mark ifam =
       let test_action _loop _len ifam =
-        if mark.(Adef.int_of_ifam ifam) = NotScanned then
+        if Gwdb.Marker.get mark ifam = NotScanned then
           mark_one_connex_component base mark ifam
       in
       scan_connex_component base test_action () ifam
 
     let add_small_connex_components base mark =
-      for i = 0 to nb_of_families base - 1 do
-        if mark.(i) = ToSeparate then
-          mark_connex_components base mark (Adef.ifam_of_int i)
-      done
+      Gwdb.Collection.iter
+        (fun i ->
+          if Gwdb.Marker.get mark i = ToSeparate
+          then mark_connex_components base mark i)
+        (Gwdb.ifams base)
 
     let separate base =
       match List.rev !separate_list with
-        [] -> (fun _ -> false)
+      | [] -> (fun _ -> false)
       | list ->
-          let mark = Array.make (nb_of_families base) NotScanned in
-          List.iter (mark_someone base mark) list;
-          add_small_connex_components base mark;
-          let len =
-            let rec loop len i =
-              if i = nb_of_families base then len
-              else if mark.(i) = ToSeparate then loop (len + 1) (i + 1)
-              else loop len (i + 1)
-            in
-            loop 0 0
-          in
-          Printf.eprintf "*** extracted %d families\n" len;
-          flush stderr;
-          fun ifam -> mark.(Adef.int_of_ifam ifam) = ToSeparate
+        let ifams = Gwdb.ifams base in
+        let mark = Gwdb.ifam_marker ifams NotScanned in
+        List.iter (mark_someone base mark) list;
+        add_small_connex_components base mark;
+        let len =
+          Gwdb.Collection.fold
+            (fun acc i ->
+               if Gwdb.Marker.get mark i = ToSeparate then (acc + 1) else acc)
+            0 ifams
+        in
+        Printf.eprintf "*** extracted %d families\n" len;
+        flush stderr;
+        fun ifam -> Gwdb.Marker.get mark ifam = ToSeparate
 
     let rs_printf oc s =
       let rec loop bol i =
