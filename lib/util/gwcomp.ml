@@ -21,7 +21,7 @@ type gw_syntax =
         (string gen_fam_event_name * cdate * string * string * string *
            string * (somebody * sex * witness_kind) list)
           list *
-        ((iper, string) gen_person, string) gen_family *
+        ((iper, string) gen_person, ifam, string) gen_family *
         (iper, string) gen_person gen_descend
   | Notes of key * string
   | Relations of somebody * sex * (somebody, string) gen_relation list

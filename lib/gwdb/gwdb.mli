@@ -18,6 +18,8 @@
 
 open Adef
 
+type iper
+type ifam
 type istr
 
 type person
@@ -101,7 +103,7 @@ val get_parent_array : family -> iper array
 
 val get_children : family -> iper array
 
-val gen_family_of_family : family -> (iper, istr) Def.gen_family
+val gen_family_of_family : family -> (iper, ifam, istr) Def.gen_family
 val gen_couple_of_couple : family -> iper Def.gen_couple
 val gen_descend_of_descend : family -> iper Def.gen_descend
 
@@ -112,7 +114,7 @@ val person_of_gen_person :
 
 val family_of_gen_family :
   base ->
-    (iper, istr) Def.gen_family * iper Def.gen_couple *
+    (iper, ifam, istr) Def.gen_family * iper Def.gen_couple *
       iper Def.gen_descend ->
     family
 
@@ -126,7 +128,7 @@ val nb_of_families : base -> int
 val patch_person : base -> iper -> (iper, istr) Def.gen_person -> unit
 val patch_ascend : base -> iper -> ifam Def.gen_ascend -> unit
 val patch_union : base -> iper -> ifam Def.gen_union -> unit
-val patch_family : base -> ifam -> (iper, istr) Def.gen_family -> unit
+val patch_family : base -> ifam -> (iper, ifam, istr) Def.gen_family -> unit
 val patch_descend : base -> ifam -> iper Def.gen_descend -> unit
 val patch_couple : base -> ifam -> iper Def.gen_couple -> unit
 
