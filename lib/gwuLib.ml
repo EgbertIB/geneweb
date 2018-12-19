@@ -425,11 +425,11 @@ module Make (Select : Select) =
         end
 
     type gen =
-      { mark : (iper, bool) Marker.t;
-        mark_rel : (iper, bool) Marker.t;
+      { mark : (iper, bool) Gwdb.Marker.t;
+        mark_rel : (iper, bool) Gwdb.Marker.t;
         per_sel : iper -> bool;
         fam_sel : ifam -> bool;
-        fam_done : bool array;
+        fam_done : (ifam, bool) Gwdb.Marker.t;
         mutable notes_pl_p : person list;
         mutable ext_files : (string * string list ref) list;
         mutable notes_alias : (string * string) list;
@@ -924,7 +924,7 @@ module Make (Select : Select) =
             m.m_chil;
           Printf.fprintf oc "end\n"
       end;
-      gen.fam_done.(Adef.int_of_ifam m.m_ifam) <- true;
+      Gwdb.Marker.set gen.fam_done m.m_ifam true ;
       let f _ =
         Printf.sprintf "family \"%s.%d %s\" & \"%s.%d %s\""
           (p_first_name base m.m_fath) (get_new_occ m.m_fath)
@@ -1677,7 +1677,7 @@ module Make (Select : Select) =
           Select.functions base anc desc !surnames ancdesc !no_spouses_parents
             !censor !with_siblings !maxlev
         in
-        let fam_done = Array.make (nb_of_families base) false in
+        let fam_done = Gwdb.ifam_marker (Gwdb.ifams base) false in
         {mark = mark; mark_rel = mark_rel; per_sel = per_sel;
          fam_sel = fam_sel; fam_done = fam_done; notes_pl_p = [];
          ext_files = []; notes_alias = notes_aliases in_dir;
@@ -1685,12 +1685,11 @@ module Make (Select : Select) =
       in
       let nb_fam = nb_of_families base in
       if !(Mutil.verbose) then ProgrBar.start ();
-      for i = 0 to nb_fam - 1 do
+      Gwdb.Collection.iteri (fun i ifam ->
         if !(Mutil.verbose) then ProgrBar.run i nb_fam;
-        let ifam = Adef.ifam_of_int i in
         let fam = foi base ifam in
         if is_deleted_family fam then ()
-        else if gen.fam_done.(i) then ()
+        else if Gwdb.Marker.get gen.fam_done ifam then ()
         else if gen.fam_sel ifam then
           let ifaml = connected_families base gen.fam_sel ifam fam in
           let (oc, first) =
@@ -1705,12 +1704,11 @@ module Make (Select : Select) =
                    {m_ifam = ifam; m_fam = fam;
                     m_fath = poi base (get_father fam);
                     m_moth = poi base (get_mother fam);
-                    m_chil =
-                      Array.map (fun ip -> poi base ip) (get_children fam)}
+                    m_chil = Array.map (fun ip -> poi base ip) (get_children fam)}
                  in
                  if empty_family base m then
                    begin
-                     gen.fam_done.(Adef.int_of_ifam m.m_ifam) <- true;
+                     Gwdb.Marker.set gen.fam_done m.m_ifam true ;
                      ml
                    end
                  else m :: ml)
@@ -1727,7 +1725,7 @@ module Make (Select : Select) =
               print_relations oc base gen ml;
               if not !old_gw then print_pevents oc base gen ml
             end
-      done;
+      ) (Gwdb.ifams base) ;
       (* Ajout des personnes isolée à l'export. On leur ajoute des    *)
       (* parents pour pouvoir utiliser les autres fonctions normales. *)
       (* Export que si c'est toute la base.                           *)
