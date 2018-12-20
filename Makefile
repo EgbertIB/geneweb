@@ -16,18 +16,20 @@ BUILD_DIR=_build/default
 
 ###### [BEGIN] Executables list
 
-INSTALL_EXE = \
-	bin/distrib/connex \
-	bin/distrib/gwb2ged \
-	bin/distrib/ged2gwb \
-	bin/distrib/gwc \
-	bin/distrib/gwd \
-	bin/distrib/gwdiff \
-	bin/distrib/gwtp \
-	bin/distrib/gwu \
-	bin/distrib/consang \
-	bin/distrib/setup \
-	bin/distrib/update_nldb
+# INSTALL_EXE = \
+# 	bin/distrib/connex \
+# 	bin/distrib/gwb2ged \
+# 	bin/distrib/ged2gwb \
+# 	bin/distrib/gwc \
+# 	bin/distrib/gwd \
+# 	bin/distrib/gwdiff \
+# 	bin/distrib/gwtp \
+# 	bin/distrib/gwu \
+# 	bin/distrib/consang \
+# 	bin/distrib/setup \
+# 	bin/distrib/update_nldb
+
+INSTALL_EXE = bin/distrib/gwd
 
 ALL_EXE = \
 	$(INSTALL_EXE) \
