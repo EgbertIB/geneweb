@@ -177,7 +177,7 @@ type place =
 
 (* person *)
 
-type ('person, 'string) gen_person =
+type ('iper, 'person, 'string) gen_person =
   { first_name : 'string;
     surname : 'string;
     occ : int;
@@ -212,7 +212,7 @@ type ('person, 'string) gen_person =
     pevents : ('person, 'string) gen_pers_event list;
     notes : 'string;
     psources : 'string;
-    key_index : 'person }
+    key_index : 'iper }
 
 
 type 'family gen_ascend = { parents : 'family option; consang : Adef.fix }
@@ -221,7 +221,7 @@ type 'family gen_union = { family : 'family array }
 
 (* family *)
 
-type ('person, 'family, 'string) gen_family =
+type ('person, 'ifam, 'string) gen_family =
   { marriage : cdate;
     marriage_place : 'string;
     marriage_note : 'string;
@@ -233,7 +233,7 @@ type ('person, 'family, 'string) gen_family =
     comment : 'string;
     origin_file : 'string;
     fsources : 'string;
-    fam_index : 'family }
+    fam_index : 'ifam }
 
 type 'person gen_couple = 'person Adef.gen_couple
 
@@ -244,11 +244,11 @@ type 'person error =
   | OwnAncestor of 'person
   | BadSexOfMarriedPerson of 'person
 
-type ('person, 'family, 'descend, 'title, 'pevent, 'fevent) warning =
+type ('iper, 'person, 'family, 'descend, 'title, 'pevent, 'fevent) warning =
     BigAgeBetweenSpouses of 'person * 'person * dmy
   | BirthAfterDeath of 'person
   | IncoherentSex of 'person * int * int
-  | ChangedOrderOfChildren of 'family * 'descend * 'person array * 'person array
+  | ChangedOrderOfChildren of 'family * 'descend * 'iper array * 'iper array
   | ChangedOrderOfMarriages of 'person * 'family array * 'family array
   | ChangedOrderOfFamilyEvents of 'family * 'fevent list * 'fevent list
   | ChangedOrderOfPersonEvents of 'person * 'pevent list * 'pevent list
@@ -283,33 +283,33 @@ type rn_mode = RnAll | Rn1Ln | RnDeg
 
 (* Historique des modifications *)
 
-type ('person, 'family, 'string) base_changed =
-    U_Add_person of ('person, 'string) gen_person
+type ('iper, 'person, 'family, 'string) base_changed =
+    U_Add_person of ('iper, 'person, 'string) gen_person
   | U_Modify_person of
-      ('person, 'string) gen_person * ('person, 'string) gen_person
-  | U_Delete_person of ('person, 'string) gen_person
+      ('iper, 'person, 'string) gen_person * ('iper, 'person, 'string) gen_person
+  | U_Delete_person of ('iper, 'person, 'string) gen_person
   | U_Merge_person of
-      ('person, 'string) gen_person * ('person, 'string) gen_person *
-        ('person, 'string) gen_person
-  | U_Send_image of ('person, 'string) gen_person
-  | U_Delete_image of ('person, 'string) gen_person
+      ('iper, 'person, 'string) gen_person * ('iper, 'person, 'string) gen_person *
+        ('iper, 'person, 'string) gen_person
+  | U_Send_image of ('iper, 'person, 'string) gen_person
+  | U_Delete_image of ('iper, 'person, 'string) gen_person
   | U_Add_family of
-      ('person, 'string) gen_person * ('person, 'family, 'string) gen_family
+      ('iper, 'person, 'string) gen_person * ('person, 'family, 'string) gen_family
   | U_Modify_family of
-      ('person, 'string) gen_person * ('person, 'family, 'string) gen_family *
+      ('iper, 'person, 'string) gen_person * ('person, 'family, 'string) gen_family *
         ('person, 'family, 'string) gen_family
   | U_Delete_family of
-      ('person, 'string) gen_person * ('person, 'family, 'string) gen_family
-  | U_Invert_family of ('person, 'string) gen_person * 'family
+      ('iper, 'person, 'string) gen_person * ('person, 'family, 'string) gen_family
+  | U_Invert_family of ('iper, 'person, 'string) gen_person * 'family
   | U_Merge_family of
-      ('person, 'string) gen_person * ('person, 'family, 'string) gen_family *
+      ('iper, 'person, 'string) gen_person * ('person, 'family, 'string) gen_family *
         ('person, 'family, 'string) gen_family * ('person, 'family, 'string) gen_family
   | U_Change_children_name of
-      ('person, 'string) gen_person *
+      ('iper, 'person, 'string) gen_person *
         ((string * string * int * 'person) * (string * string * int * 'person)) list
   | U_Add_parent of
-      ('person, 'string) gen_person * ('person, 'family, 'string) gen_family
-  | U_Kill_ancestors of ('person, 'string) gen_person
+      ('iper, 'person, 'string) gen_person * ('person, 'family, 'string) gen_family
+  | U_Kill_ancestors of ('iper, 'person, 'string) gen_person
   | U_Multi of
-      ('person, 'string) gen_person * ('person, 'string) gen_person * bool
+      ('iper, 'person, 'string) gen_person * ('iper, 'person, 'string) gen_person * bool
   | U_Notes of int option * string

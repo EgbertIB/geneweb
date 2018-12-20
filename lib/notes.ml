@@ -256,8 +256,8 @@ let print_linked_list conf base pgl =
            Wserver.printf "<tt>";
            if conf.wizard then
              begin
-               Wserver.printf "<a href=\"%s&i=%d&\">"
-                 (commd conf) (Adef.int_of_iper ip);
+               Wserver.printf "<a href=\"%s&i=%s&\">"
+                 (commd conf) (Gwdb.string_of_iper ip);
                Wserver.printf "</sup><i class=\"fa fa-cog\"></i></sup>";
                Wserver.printf "</a>"
              end;
@@ -278,9 +278,9 @@ let print_linked_list conf base pgl =
            if conf.wizard then
              begin
                Wserver.printf
-                 "<a class=\"mx-2\" href=\"%sm=MOD_FAM&i=%d&ip=%d&\">"
-                 (commd conf) (Adef.int_of_ifam ifam)
-                 (Adef.int_of_iper (Gwdb.get_key_index fath));
+                 "<a class=\"mx-2\" href=\"%sm=MOD_FAM&i=%s&ip=%s&\">"
+                 (commd conf) (Gwdb.string_of_ifam ifam)
+                 (Gwdb.string_of_iper (Gwdb.get_key_index fath));
                Wserver.printf "</sup><i class=\"fa fa-cog\"></i></sup>";
                Wserver.printf "</a>"
              end;
