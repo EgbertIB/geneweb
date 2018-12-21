@@ -1247,11 +1247,15 @@ let excluded_possible_duplications conf =
   gen_excluded_possible_duplications conf "fexcl" ifam_of_string
 
 let first_possible_duplication base ip (iexcl, fexcl) =
+  print_endline __LOC__ ;
+  print_endline (string_of_iper ip) ;
   let ifaml = Array.to_list (get_family (poi base ip)) in
+  print_endline __LOC__ ;
   let cand_spouse =
     let rec loop_spouse =
       function
         ifam1 :: ifaml1 ->
+        print_endline __LOC__ ;
           let isp1 = Gutil.spouse ip (foi base ifam1) in
           let sp1 = poi base isp1 in
           let fn1 = get_first_name sp1 in
@@ -1262,7 +1266,7 @@ let first_possible_duplication base ip (iexcl, fexcl) =
                 let isp2 = Gutil.spouse ip (foi base ifam2) in
                 if isp2 = isp1 then
                   if not (List.mem (ifam1, ifam2) fexcl) then
-                    DupFam (ifam1, ifam2)
+                    let () = print_endline __LOC__ in DupFam (ifam1, ifam2)
                   else loop_same ifaml2
                 else
                   let sp2 = poi base isp2 in
@@ -1271,15 +1275,16 @@ let first_possible_duplication base ip (iexcl, fexcl) =
                     eq_istr (get_first_name sp2) fn1 &&
                     eq_istr (get_surname sp2) sn1
                   then
-                    DupInd (isp1, isp2)
+                    let () = print_endline __LOC__ in DupInd (isp1, isp2)
                   else loop_same ifaml2
             | [] -> loop_spouse ifaml1
           in
           loop_same ifaml1
-      | [] -> NoDup
+      | [] ->  print_endline __LOC__ ; NoDup
     in
     loop_spouse ifaml
   in
+  print_endline __LOC__ ; 
   if cand_spouse <> NoDup then cand_spouse
   else
     let ipl =
@@ -1302,18 +1307,21 @@ let first_possible_duplication base ip (iexcl, fexcl) =
               ip2 :: ipl2 ->
                 let p2 = poi base ip2 in
                 if List.mem (ip1, ip2) iexcl then loop_same ipl2
-                else if eq_istr (get_first_name p2) fn1 then DupInd (ip1, ip2)
+                else if eq_istr (get_first_name p2) fn1 then let () = print_endline __LOC__ in DupInd (ip1, ip2)
                 else loop_same ipl2
             | [] -> loop_chil ipl1
           in
           loop_same ipl1
-      | [] -> NoDup
+      | [] -> print_endline __LOC__ ; NoDup
     in
     loop_chil ipl
 
 let has_possible_duplications conf base p =
+  print_endline __LOC__ ;
   let ip = get_key_index p in
+  print_endline __LOC__ ;
   let excl = excluded_possible_duplications conf in
+  print_endline __LOC__ ;
   first_possible_duplication base ip excl <> NoDup
 
 let merge_date_place conf base surn ((d1, d2, pl), auth) p =
@@ -1591,25 +1599,44 @@ let linked_page_text conf base p s key str (pg, (_, il)) =
   | _ -> str
 
 let links_to_ind conf base db key =
+  print_endline __LOC__ ;
+  let () = (* init cache *)
+    let ipers, ifams =
+      List.fold_left
+        (fun ((ipers, ifams) as acc) (pg, _) -> match pg with
+           | NotesLinks.PgInd ip -> (ip :: ipers, ifams)
+           | NotesLinks.PgFam ifam -> (ipers, ifam :: ifams)
+           | NotesLinks.PgNotes
+           | NotesLinks.PgMisc _
+           | NotesLinks.PgWizard _
+             -> acc)
+        ([], []) db
+    in
+    ignore @@ Gwdb.poi_batch base @@
+    List.rev_append (List.map get_father @@ Gwdb.foi_batch base ifams) ipers
+  in
   let list =
     List.fold_left
       (fun pgl (pg, (_, il)) ->
          let record_it =
            match pg with
              NotesLinks.PgInd ip ->
-               authorized_age conf base (pget conf base ip)
+             authorized_age conf base (pget conf base ip)
            | NotesLinks.PgFam ifam ->
-               authorized_age conf base (pget conf base (get_father @@ foi base ifam))
-           | NotesLinks.PgNotes | NotesLinks.PgMisc _ |
-             NotesLinks.PgWizard _ ->
-               true
+             authorized_age conf base (pget conf base (get_father @@ foi base ifam))
+           | NotesLinks.PgNotes
+           | NotesLinks.PgMisc _
+           | NotesLinks.PgWizard _ ->
+             true
          in
          if record_it then
            List.fold_left
              (fun pgl (k, _) -> if k = key then pg :: pgl else pgl) pgl il
-         else pgl)
+         else
+           pgl)
       [] db
   in
+  print_endline __LOC__ ;
   List.sort_uniq compare list
 
 (* Interpretation of template file *)
@@ -3176,18 +3203,22 @@ and eval_person_field_var conf base env (p, p_auth as ep) loc =
   | ["has_linked_pages"] ->
       begin match get_env "nldb" env with
         Vnldb db ->
+        print_endline __LOC__ ;
           let r =
             if p_auth then
               let key =
                 let fn = Name.lower (sou base (get_first_name p)) in
                 let sn = Name.lower (sou base (get_surname p)) in
+                print_endline @@ Printf.sprintf "%s: %s %s %d" __LOC__  fn sn (get_occ p) ;
                 fn, sn, get_occ p
               in
+              print_endline __LOC__ ;
               links_to_ind conf base db key <> []
             else false
           in
+          print_endline __LOC__ ;
           VVbool r
-      | _ -> raise Not_found
+      | _ -> print_endline __LOC__ ; raise Not_found
       end
   | ["has_sosa"] ->
       begin match get_env "p_link" env with
@@ -3211,8 +3242,36 @@ and eval_person_field_var conf base env (p, p_auth as ep) loc =
       with _ -> raise Not_found
       end
 #else
-  | "init_cache" :: _ ->
-      VVstring ""
+  | ["init_cache"; _nb_asc; _from_gen_desc; nb_desc] ->
+
+    let () = print_endline @@ Printf.sprintf "%s: %s" __LOC__ nb_desc in
+    (* FIXME: spouses + ancestors + spouse ancestors *)
+    let nb_desc = int_of_string nb_desc in
+    let rec loop todo (lvl : int) =
+      let () = print_endline @@ Printf.sprintf "%s: %d (%d)" __LOC__ lvl (Array.length todo) in
+      let persons = Gwdb.poi_batch base (Array.to_list todo) in
+      if lvl <= nb_desc then
+        let todo =
+          List.map (fun x ->
+              let x = Gwdb.get_family x in
+              let () = print_endline @@ Printf.sprintf "%s: %d" __LOC__ (Array.length x) in
+              Array.to_list x) persons
+          |> List.flatten
+          |> Gwdb.foi_batch base
+
+          |> List.map (fun x ->
+              let x = Gwdb.get_children x in
+              let () = print_endline @@ Printf.sprintf "%s: %d" __LOC__ (Array.length x) in
+              x)
+          (* |> List.map Gwdb.get_children *)
+          |> Array.concat
+        in
+        loop todo (lvl + 1)
+      else ()
+    in
+    loop [| Gwdb.get_key_index p |] 0 ;
+    VVstring ""
+
 #endif
   | ["linked_page"; s] ->
       begin match get_env "nldb" env with
@@ -5951,7 +6010,8 @@ let gen_interp_templ menu title templ_fname conf base p =
       let bdir = Util.base_path [] (conf.bname ^ ".gwb") in
       let fname = Filename.concat bdir "notes_links" in
       let db = NotesLinks.read_db_from_file fname in
-      let db = Notes.merge_possible_aliases conf db in Vnldb db
+      let db = Notes.merge_possible_aliases conf db in
+      Vnldb db
     in
     let all_gp () = Vallgp (get_all_generations conf base p) in
     [("p", Vind p);

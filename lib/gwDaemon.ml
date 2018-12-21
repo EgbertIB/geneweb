@@ -31,7 +31,7 @@ let robot_xcl = ref None
 let auth_file = ref ""
 let daemon = ref false
 let login_timeout = ref 1800
-let conn_timeout = ref 120
+let conn_timeout = ref 1800
 let trace_failed_passwd = ref false
 let use_auth_digest_scheme = ref false
 let no_host_address = ref false
@@ -1808,6 +1808,7 @@ let make_cnt_dir x =
   Util.cnt_dir := x
 
 let main ~speclist () =
+  Printexc.record_backtrace true ;
   if Sys.unix then ()
   else begin Wserver.sock_in := "gwd.sin"; Wserver.sock_out := "gwd.sou" end;
   let usage =

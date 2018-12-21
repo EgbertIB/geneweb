@@ -482,7 +482,8 @@ let this_request_updates_database conf =
   | _ -> false
 
 let treat_request_on_base conf =
-  let bfile = Util.base_path [] (conf.bname ^ ".gwb") in
+  (* let bfile = Util.base_path [] (conf.bname ^ ".gwb") in *)
+  let bfile = conf.bname in
   if this_request_updates_database conf then
     Lock.control (Mutil.lock_file bfile) false
       ~onerror:(fun () -> Update.error_locked conf)

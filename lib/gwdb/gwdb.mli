@@ -97,6 +97,7 @@ val get_witnesses : family -> iper array
 val get_father : family -> iper
 val get_mother : family -> iper
 val get_parent_array : family -> iper array
+val get_fam_index : family -> ifam
 
 val get_children : family -> iper array
 
@@ -116,7 +117,9 @@ val family_of_gen_family :
     family
 
 val poi : base -> iper -> person
+val poi_batch : base -> iper list -> person list
 val foi : base -> ifam -> family
+val foi_batch : base -> ifam list -> family list
 val sou : base -> istr -> string
 
 val nb_of_persons : base -> int
@@ -159,17 +162,29 @@ val persons_of_name : base -> string -> iper list
 val persons_of_first_name : base -> string_person_index
 val persons_of_surname : base -> string_person_index
 
+(** first [first/sur]name starting with that string *)
 val spi_first : string_person_index -> string -> istr
-  (* first [first/sur]name starting with that string *)
+
+(** next [first/sur]name by Gutil.alphabetical order *)
 val spi_next : string_person_index -> istr -> bool -> istr * int
-  (* next [first/sur]name by Gutil.alphabetical order *)
+
+(** all persons having that [first/sur]name *)
 val spi_find : string_person_index -> istr -> iper list
-  (* all persons having that [first/sur]name *)
 
 val base_visible_get : base -> (person -> bool) -> iper -> bool
 val base_visible_write : base -> unit
 val base_particles : base -> string list
+
+(** [base_strings_of_first_name base x]
+    Return the list of first names (as [istr]) being equal to [x]
+    using  {!val:Name.crush_lower} comparison.
+*)
 val base_strings_of_first_name : base -> string -> istr list
+
+(** [base_strings_of_surname base x]
+    Return the list of surnames (as [istr]) being equal to [x]
+    using  {!val:Name.crush_lower} comparison.
+*)
 val base_strings_of_surname : base -> string -> istr list
 
 val load_ascends_array : base -> unit
@@ -293,7 +308,5 @@ val families : base -> family Collection.t
 
 (** {2 Useful markers} *)
 
-val person_marker : person Collection.t -> 'a -> (person, 'a) Marker.t
 val iper_marker : iper Collection.t -> 'a -> (iper, 'a) Marker.t
-val family_marker : family Collection.t -> 'a -> (family, 'a) Marker.t
 val ifam_marker : ifam Collection.t -> 'a -> (ifam, 'a) Marker.t

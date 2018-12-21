@@ -554,6 +554,7 @@ let accept_connection tmout max_clients callback s =
     cleanup ()
 
 let f addr_opt port tmout max_clients g =
+  print_endline __LOC__ ;
   match
     if Sys.unix then None
     else try Some (Sys.getenv "WSERVER") with Not_found -> None

@@ -1,0 +1,9 @@
+(library
+ (name gwdb4)
+ (public_name geneweb.gwdb4)
+ (wrapped false)
+ (libraries geneweb.def geneweb.wserver geneweb.util geneweb.io yojson curl)
+ (flags       (:standard -no-keep-locs))
+)
+
+(rule (copy# %{lib:geneweb.gwdb:gwdb.mli} gwdb.mli))
