@@ -31,16 +31,44 @@ type title = istr Def.gen_title
 type pers_event = (iper, istr) Def.gen_pers_event
 type fam_event = (iper, istr) Def.gen_fam_event
 
-(* type relation = Yojson.json
- * type title = Yojson.json
- * type pers_event = Yojson.json
- * type fam_event = Yojson.json *)
-
 type string_person_index
 
-type base = string
+type base = (string * (string -> string))
 
-let open_base name = name
+let open_base name =
+  assert (name = "pierfit") ;
+  ( name
+  , fun request ->
+    let url = Printf.sprintf "http://virt6:8529/_db/Trees/geneweb/%s/%s" name request in
+    Curl.global_init Curl.CURLINIT_GLOBALALL;
+    let res = ref "" in
+    let result = Buffer.create 16384
+    and errorBuffer = ref "" in
+    begin try
+        let connection = Curl.init () in
+        let headers = [] in
+        Curl.set_httpheader connection headers;
+        Curl.set_errorbuffer connection errorBuffer;
+        Curl.set_writefunction connection
+          (fun data ->
+             Buffer.add_string result data;
+             String.length data);
+        Curl.set_followlocation connection true;
+        Curl.set_url connection url;
+        Curl.set_timeoutms connection 1000;
+        Curl.perform connection;
+        Curl.cleanup connection;
+        res := Buffer.contents result
+      with
+      | Curl.CurlException _ ->
+        Printf.fprintf stderr "Error: %s\n" !errorBuffer
+      | Failure s ->
+        Printf.fprintf stderr "Caught exception: %s\n" s
+    end ;
+    Curl.global_cleanup () ;
+    !res
+  )
+
 let close_base _base = ()
 
 let dummy_iper = ""
@@ -228,31 +256,156 @@ let get_surnames_aliases _p = [ __LOC__ ]
 
 let get_titles : person -> title list = fun _p -> []
 
+let clear_families_array _ = ()
+let clear_persons_array _ = ()
+let clear_strings_array _ = ()
+let clear_descends_array _ = ()
+let clear_couples_array _ = ()
+let clear_unions_array _ = ()
+let clear_ascends_array _ = ()
+let load_families_array _ = ()
+let load_persons_array _ = ()
+let load_strings_array _ = ()
+let load_descends_array _ = ()
+let load_couples_array _ = ()
+let load_unions_array _ = ()
+let load_ascends_array _ = ()
+
+let sou _base istr = istr
+
+let foi (_, get) ifam =
+  get @@ "family/" ^ ifam
+  |> Yojson.Basic.from_string
+
+let poi (_, get) iper =
+  get @@ "person/" ^ iper
+  |> Yojson.Basic.from_string
+
+(* FIXME https://github.com/geneweb/geneweb/pull/726/ *)
+let json_of_cdate _ = assert false
+let json_of_relation_kind _ = assert false
+let json_of_divorce _ = assert false
+let json_of_fevent _ = assert false
+let json_of_death _ = assert false
+let json_of_burial _ = assert false
+
+let family_of_gen_family _base (f, _c, _d)
+  =
+  let open Def in
+  `Assoc [ ("marriage", json_of_cdate f.marriage)
+         ; ("marriage_place", `String f.marriage_place)
+         ; ("marriage_note", `String f.marriage_note)
+         ; ("marriage_src", `String f.marriage_src)
+         ; ("witnesses", `List (Array.to_list @@ Array.map (fun x -> `String x) f.witnesses) )
+         ; ("relation", json_of_relation_kind f.relation)
+         ; ("divorce", json_of_divorce f.divorce)
+         ; ("fevents", `List (List.map json_of_fevent f.fevents))
+         ; ("comment", `String f.comment)
+         ; ("origin_file", `String f.origin_file)
+         ; ("fsources", `String f.fsources)
+         ; ("fam_index", `String f.fam_index)
+         ]
+
+let person_of_gen_person _base (p, _a, _u) =
+  let open Def in
+  `Assoc [ ("first_name", `String p.first_name)
+         ; ("surname", `String p.surname)
+         ; ("occ", `Int p.occ)
+         ; ("image", `String p.image)
+         ; ("public_name", `String p.public_name)
+         ; ("qualifiers", `List (List.map (fun x -> `String x) p.qualifiers) )
+         ; ("aliases", `List (List.map (fun x -> `String x) p.aliases) )
+         ; ("first_names_aliases", `List (List.map (fun x -> `String x) p.first_names_aliases) )
+         ; ("surnames_aliases", `List (List.map (fun x -> `String x) p.surnames_aliases) )
+         ; ("titles", `List [])   (* FIXME *)
+         ; ("rparents", `List [])
+         ; ("related", `List [])
+         ; ("occupation", `String p.occupation)
+         ; ("sex", match p.sex with Male -> `Int 0 | Female -> `Int 1 | Neuter -> `Int 2)
+         ; ("access", match p.access with Private -> `Int 2 | Public  -> `Int 1 | IfTitles -> `Int 0)
+         ; ("birth", json_of_cdate p.birth)
+         ; ("birth_place", `String p.birth_place)
+         ; ("birth_note", `String p.birth_note)
+         ; ("birth_src", `String p.birth_src)
+         ; ("baptism", json_of_cdate p.baptism)
+         ; ("baptism_place", `String p.baptism_place)
+         ; ("baptism_note", `String p.baptism_note)
+         ; ("baptism_src", `String p.baptism_src)
+         ; ("death", json_of_death p.death)
+         ; ("death_place", `String p.death_place)
+         ; ("death_note", `String p.death_note)
+         ; ("death_src", `String p.death_src)
+         ; ("burial", json_of_burial p.burial)
+         ; ("burial_place", `String p.burial_place)
+         ; ("burial_note", `String p.burial_note)
+         ; ("burial_src", `String p.burial_src)
+         ; ("pevents", `List []) (* FIXME *)
+         ; ("notes", `String p.notes)
+         ; ("psources", `String p.psources)
+         ; ("key_index", `String p.key_index)
+         ]
+
+let gen_person_of_person = assert false
+let gen_descend_of_descend = assert false
+let gen_couple_of_couple = assert false
+let gen_family_of_family = assert false
+
 module Collection = struct
-  type 'a t
-  let length _ = assert false
-  let map _ _ = assert false
-  let iter _ _ = assert false
-  let iteri _ _ = assert false
-  let fold _ _ _ = assert false
+  type 'a t = 'a array
+  let length = Array.length
+  let map = Array.map
+  let iter = Array.iter
+  let iteri = Array.iteri
+  let fold = Array.fold_left
   let fold_until _ _ _ _ = assert false
-  let iterator _ = assert false
+  let iterator c =
+    let i = ref 0 in
+    fun () ->
+      try let r = Array.get c !i in incr i ; Some r
+      with _ -> None
 end
 
 module Marker = struct
-  type ('k, 'v) t
-  let get _ _ = assert false
-  let set _ _ _ = assert false
+  type ('k, 'v) t = ('v * ('k, 'v) Hashtbl.t)
+  let create nb d = (d, Hashtbl.create nb)
+  let get (d, m) k = try Hashtbl.find m k with Not_found -> d
+  let set (_, m) k v = Hashtbl.replace m k v
 end
 
-let ifam_marker _ = assert false
-let family_marker _ = assert false
-let iper_marker = assert false
-let person_marker = assert false
-let families = assert false
-let ifams = assert false
-let persons = assert false
-let ipers = assert false
+let of_list fn = function
+  | [] -> [||]
+  | hd :: tl as l ->
+    let init = fn hd in
+    let a = Array.make (List.length l) init in
+    List.iteri (fun i x -> Array.unsafe_set a (i + 1) (fn x)) tl ;
+    a
+
+let ipers (_, get) : iper Collection.t =
+  match Yojson.Basic.from_string (get "ipers") with
+  | `List l -> (of_list J.to_string l)
+  | _ -> assert false
+
+let persons (_, get) =
+  match Yojson.Basic.from_string (get "persons") with
+  | `List l -> Array.of_list l
+  | _ -> assert false
+
+let ifams (_, get) : ifam Collection.t =
+  match Yojson.Basic.from_string (get "ifams") with
+  | `List l -> (of_list J.to_string l)
+  | _ -> assert false
+
+let families (_, get) =
+  match Yojson.Basic.from_string (get "families") with
+  | `List l -> Array.of_list l
+  | _ -> assert false
+
+let ifam_marker ifams init =
+  Marker.create (Collection.length ifams) init
+
+let iper_marker ipers init =
+  Marker.create (Collection.length ipers) init
+
 let date_of_last_change = assert false
 let p_surname = assert false
 let p_first_name = assert false
@@ -267,20 +420,6 @@ let base_notes_read_first_line = assert false
 let base_notes_read = assert false
 let ascends_array = assert false
 let persons_array = assert false
-let clear_families_array = assert false
-let clear_persons_array = assert false
-let clear_strings_array = assert false
-let clear_descends_array = assert false
-let clear_couples_array = assert false
-let clear_unions_array = assert false
-let clear_ascends_array = assert false
-let load_families_array = assert false
-let load_persons_array = assert false
-let load_strings_array = assert false
-let load_descends_array = assert false
-let load_couples_array = assert false
-let load_unions_array = assert false
-let load_ascends_array = assert false
 let base_strings_of_surname = assert false
 let base_strings_of_first_name = assert false
 let base_particles = assert false
@@ -313,14 +452,6 @@ let patch_ascend = assert false
 let patch_person = assert false
 let nb_of_families = assert false
 let nb_of_persons = assert false
-let sou = assert false
-let foi = assert false
-let poi = assert false
-let family_of_gen_family = assert false
-let person_of_gen_person = assert false
-let gen_descend_of_descend = assert false
-let gen_couple_of_couple = assert false
-let gen_family_of_family = assert false
 let get_children = assert false
 let get_parent_array = assert false
 let get_mother = assert false
@@ -336,7 +467,6 @@ let get_fsources = assert false
 let get_fevents = assert false
 let get_divorce = assert false
 let get_comment = assert false
-let gen_person_of_person = assert false
 let get_family = assert false
 let get_consang = assert false
 let get_parents = assert false
