@@ -263,7 +263,5 @@ val persons : base -> person Collection.t
 val ifams : base -> ifam Collection.t
 val families : base -> family Collection.t
 
-val person_marker : person Collection.t -> 'a -> (person, 'a) Marker.t
 val iper_marker : iper Collection.t -> 'a -> (iper, 'a) Marker.t
-val family_marker : family Collection.t -> 'a -> (family, 'a) Marker.t
 val ifam_marker : ifam Collection.t -> 'a -> (ifam, 'a) Marker.t
