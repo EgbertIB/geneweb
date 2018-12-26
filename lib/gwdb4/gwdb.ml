@@ -107,93 +107,88 @@ let get_occupation p =
 let pevent_name_of_string =
   let open Def in
   function
-  | `String "birth" -> Epers_Birth
-  | `String "baptism" -> Epers_Baptism
-  | `String "death" -> Epers_Death
-  | `String "burial" -> Epers_Burial
-  | `String "cremation" -> Epers_Cremation
-  | `String "accomplishment" -> Epers_Accomplishment
-  | `String "aquisition" -> Epers_Acquisition
-  | `String "adhesion" -> Epers_Adhesion
-  | `String "baptismlds" -> Epers_BaptismLDS
-  | `String "barmitzvah" -> Epers_BarMitzvah
-  | `String "batmitzvah" -> Epers_BatMitzvah
-  | `String "benediction" -> Epers_Benediction
-  | `String "changename" -> Epers_ChangeName
-  | `String "circumcision" -> Epers_Circumcision
-  | `String "confirmation" -> Epers_Confirmation
-  | `String "confirmationlds" -> Epers_ConfirmationLDS
-  | `String "decoration" -> Epers_Decoration
-  | `String "demobilisationmilitaire" -> Epers_DemobilisationMilitaire
-  | `String "diploma" -> Epers_Diploma
-  | `String "distinction" -> Epers_Distinction
-  | `String "dotation" -> Epers_Dotation
-  | `String "dotationlds" -> Epers_DotationLDS
-  | `String "education" -> Epers_Education
-  | `String "election" -> Epers_Election
-  | `String "emigration" -> Epers_Emigration
-  | `String "excommunication" -> Epers_Excommunication
-  | `String "familylinklds" -> Epers_FamilyLinkLDS
-  | `String "firstcommunion" -> Epers_FirstCommunion
-  | `String "funeral" -> Epers_Funeral
-  | `String "graduate" -> Epers_Graduate
-  | `String "hospitalisation" -> Epers_Hospitalisation
-  | `String "illness" -> Epers_Illness
-  | `String "immigration" -> Epers_Immigration
-  | `String "listepassenger" -> Epers_ListePassenger
-  | `String "militarydistinction" -> Epers_MilitaryDistinction
-  | `String "militarypromotion" -> Epers_MilitaryPromotion
-  | `String "militaryservice" -> Epers_MilitaryService
-  | `String "mobilisationmilitaire" -> Epers_MobilisationMilitaire
-  | `String "naturalisation" -> Epers_Naturalisation
-  | `String "occupation" -> Epers_Occupation
-  | `String "ordination" -> Epers_Ordination
-  | `String "property" -> Epers_Property
-  | `String "recensement" -> Epers_Recensement
-  | `String "residence" -> Epers_Residence
-  | `String "retired" -> Epers_Retired
-  | `String "scellentchildlds" -> Epers_ScellentChildLDS
-  | `String "scellentparentlds" -> Epers_ScellentParentLDS
-  | `String "scellentspouselds" -> Epers_ScellentSpouseLDS
-  | `String "ventebien" -> Epers_VenteBien
-  | `String "will" -> Epers_Will
-  | `String s -> Epers_Name s
-  | _ -> assert false
+  | "birth" -> Epers_Birth
+  | "baptism" -> Epers_Baptism
+  | "death" -> Epers_Death
+  | "burial" -> Epers_Burial
+  | "cremation" -> Epers_Cremation
+  | "accomplishment" -> Epers_Accomplishment
+  | "aquisition" -> Epers_Acquisition
+  | "adhesion" -> Epers_Adhesion
+  | "baptismlds" -> Epers_BaptismLDS
+  | "barmitzvah" -> Epers_BarMitzvah
+  | "batmitzvah" -> Epers_BatMitzvah
+  | "benediction" -> Epers_Benediction
+  | "changename" -> Epers_ChangeName
+  | "circumcision" -> Epers_Circumcision
+  | "confirmation" -> Epers_Confirmation
+  | "confirmationlds" -> Epers_ConfirmationLDS
+  | "decoration" -> Epers_Decoration
+  | "demobilisationmilitaire" -> Epers_DemobilisationMilitaire
+  | "diploma" -> Epers_Diploma
+  | "distinction" -> Epers_Distinction
+  | "dotation" -> Epers_Dotation
+  | "dotationlds" -> Epers_DotationLDS
+  | "education" -> Epers_Education
+  | "election" -> Epers_Election
+  | "emigration" -> Epers_Emigration
+  | "excommunication" -> Epers_Excommunication
+  | "familylinklds" -> Epers_FamilyLinkLDS
+  | "firstcommunion" -> Epers_FirstCommunion
+  | "funeral" -> Epers_Funeral
+  | "graduate" -> Epers_Graduate
+  | "hospitalisation" -> Epers_Hospitalisation
+  | "illness" -> Epers_Illness
+  | "immigration" -> Epers_Immigration
+  | "listepassenger" -> Epers_ListePassenger
+  | "militarydistinction" -> Epers_MilitaryDistinction
+  | "militarypromotion" -> Epers_MilitaryPromotion
+  | "militaryservice" -> Epers_MilitaryService
+  | "mobilisationmilitaire" -> Epers_MobilisationMilitaire
+  | "naturalisation" -> Epers_Naturalisation
+  | "occupation" -> Epers_Occupation
+  | "ordination" -> Epers_Ordination
+  | "property" -> Epers_Property
+  | "recensement" -> Epers_Recensement
+  | "residence" -> Epers_Residence
+  | "retired" -> Epers_Retired
+  | "scellentchildlds" -> Epers_ScellentChildLDS
+  | "scellentparentlds" -> Epers_ScellentParentLDS
+  | "scellentspouselds" -> Epers_ScellentSpouseLDS
+  | "ventebien" -> Epers_VenteBien
+  | "will" -> Epers_Will
+  | s -> Epers_Name s
 
-let dmy_of_json json =
-  { Def.day = get_int json "day"
-  ; Def.month = get_int json "month"
-  ; Def.year = get_int json "year"
-  }
+let dmy_of_json _json = failwith __LOC__
+  (* { Def.day = get_int json "day"
+   * ; Def.month = get_int json "month"
+   * ; Def.year = get_int json "year"
+   * } *)
 
 let cdate_of_json = function
-  | `Null -> Def.Cnone
-  | `String t -> Dtext t
-  | `Assoc json ->
-    let d1 = dmy_of_json (J.member "dmy1" json) in
-    let calendar = match get_string json "calendar" with
-      | "gregorian" -> Dgregorian
-      | "julian" -> Djulian
-      | "french" -> Dfrench
-      | "hebrew" -> Dhebrew
-      | s -> failwith @@ "Unknown calendar \"" ^  s ^ "\""
-    in
-    let prec =  match get_string json "prec" with
-      | "sure" -> Sure
-      | "about" -> About
-      | "maybe" -> Maybe
-      | "before" -> Before
-      | "after" -> After
-      | "or" -> OrYear (dmy_of_json (J.member "dmy2" json))
-      | "between" -> YearInt (dmy_of_json (J.member "dmy2" json))
-      | s -> failwith @@ "Unknown prec \"" ^  s ^ "\""
-
-
-let json_of_cdate cd = match Adef.od_of_cdate cd with
-    None -> `Null
-  | Some date -> json_of_date date
-
-
+  | `Null -> Adef.cdate_of_od None
+  | `String _t -> Adef.cdate_of_od None (* Dtext t *)
+  | `Assoc _json ->
+    failwith __LOC__
+    (* let d1 = dmy_of_json (J.member "dmy1" json) in
+     * let calendar = match get_string json "calendar" with
+     *   | "gregorian" -> Dgregorian
+     *   | "julian" -> Djulian
+     *   | "french" -> Dfrench
+     *   | "hebrew" -> Dhebrew
+     *   | s -> failwith @@ "Unknown calendar \"" ^  s ^ "\""
+     * in
+     * let prec =  match get_string json "prec" with
+     *   | "sure" -> Sure
+     *   | "about" -> About
+     *   | "maybe" -> Maybe
+     *   | "before" -> Before
+     *   | "after" -> After
+     *   | "or" -> OrYear (dmy_of_json (J.member "dmy2" json))
+     *   | "between" -> YearInt (dmy_of_json (J.member "dmy2" json))
+     *   | s -> failwith @@ "Unknown prec \"" ^  s ^ "\""
+     * in
+     * Dgreg ({ prec ; calendar ; }) *)
 
 let pevent_of_json json =
   { Def.epers_place = get_string json "place"
@@ -201,8 +196,8 @@ let pevent_of_json json =
   ; epers_note = get_string json "note"
   ; epers_src = get_string json "src"
   ; epers_name = pevent_name_of_string (get_string json "name")
-  ; epers_date = date_of_json (J.member "member" json)
-  ; epers_witnesses = []
+  ; epers_date = Adef.cdate_of_od None(*** date_of_json (J.member "member" json) ***)
+  ; epers_witnesses = [||]
   }
 
 let get_pevents p =
@@ -212,16 +207,19 @@ let get_psources _p = __LOC__
 
 let get_public_name _p = __LOC__
 
-let get_qualifiers _p = [ __LOC__ ] list
+let get_qualifiers _p = [ __LOC__ ]
 
-let get_related : person -> iper list
+let get_related _p = []
 
-let get_rparents : person -> relation list
+let get_rparents _p = []
 
-let get_sex : person -> Def.sex
+let get_sex p = match get_int p "sex" with
+  | 1 -> Def.Male
+  | 2 -> Def.Female
+  | _ -> Def.Neuter
 
 let get_surname _p = __LOC__
 
-let get_surnames_aliases _p = __LOC__ list
+let get_surnames_aliases _p = [ __LOC__ ]
 
-let get_titles : person -> title list *)
+let get_titles _p = [ __LOC__ ]
