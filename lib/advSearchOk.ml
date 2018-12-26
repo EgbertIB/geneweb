@@ -16,14 +16,14 @@ let reconstitute_date_dmy conf var =
           begin match get_number var "dd" conf.env with
             Some d ->
               if d >= 1 && d <= 31 && m >= 1 && m <= 12 then
-                Some {day = d; month = m; year = y; prec = Sure; delta = 0}
+                Some {day = d; month = m; year = y; prec = Sure}
               else None
           | None ->
               if m >= 1 && m <= 12 then
-                Some {day = 0; month = m; year = y; prec = Sure; delta = 0}
+                Some {day = 0; month = m; year = y; prec = Sure}
               else None
           end
-      | None -> Some {day = 0; month = 0; year = y; prec = Sure; delta = 0}
+      | None -> Some {day = 0; month = 0; year = y; prec = Sure}
       end
   | None -> None
 

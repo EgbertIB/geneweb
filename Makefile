@@ -123,7 +123,7 @@ lib/compilation.ml:
 	echo "let scan_dmy s =" > $@
 	echo "let open Adef in" >> $@
 	echo "Scanf.sscanf s \"%d %d %d\" @@ fun day month year ->" >> $@
-	echo "Dgreg({day;month;year;prec=Sure;delta=0},Dgregorian)" >> $@
+	echo "Dgreg({day;month;year;prec=Sure},Dgregorian)" >> $@
 	echo "let compilation_time = scan_dmy \"$$(date "+%d %m %Y")\"" >> $@
 	echo "let commit = \"$$(git show -s --pretty=format:%h)\"" >> $@
 	echo "let commit_date = scan_dmy \"$$(git show -s --pretty=format:%cd --date=format:'%d %m %Y')\"" >> $@

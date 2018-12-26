@@ -148,7 +148,7 @@ let string_of_start_date conf =
     Some (d, m, y) ->
       let d =
         Dgreg
-          ({day = d; month = m; year = y; prec = Sure; delta = 0}, Dgregorian)
+          ({day = d; month = m; year = y; prec = Sure}, Dgregorian)
       in
       Util.translate_eval (Date.string_of_date conf d)
   | _ -> r.start_date

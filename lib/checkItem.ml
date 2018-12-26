@@ -44,37 +44,37 @@ let time_elapsed d1 d2 =
   let prec = common_prec d1.prec d2.prec in
   match d1 with
     {day = 0; month = 0; year = a1} ->
-      {day = 0; month = 0; year = d2.year - a1; prec = prec; delta = 0}
+      {day = 0; month = 0; year = d2.year - a1; prec = prec}
   | {day = 0; month = m1; year = a1} ->
       begin match d2 with
         {day = 0; month = 0; year = a2} ->
-          {day = 0; month = 0; year = a2 - a1; prec = prec; delta = 0}
+          {day = 0; month = 0; year = a2 - a1; prec = prec}
       | {day = 0; month = m2; year = a2} ->
           let r = 0 in
           let (month, r) =
             if m1 + r <= m2 then m2 - m1 - r, 0 else m2 - m1 - r + 12, 1
           in
           let year = a2 - a1 - r in
-          {day = 0; month = month; year = year; prec = prec; delta = 0}
+          {day = 0; month = month; year = year; prec = prec}
       | {month = m2; year = a2} ->
           let r = 0 in
           let (month, r) =
             if m1 + r <= m2 then m2 - m1 - r, 0 else m2 - m1 - r + 12, 1
           in
           let year = a2 - a1 - r in
-          {day = 0; month = month; year = year; prec = prec; delta = 0}
+          {day = 0; month = month; year = year; prec = prec}
       end
   | {day = j1; month = m1; year = a1} ->
       match d2 with
         {day = 0; month = 0; year = a2} ->
-          {day = 0; month = 0; year = a2 - a1; prec = prec; delta = 0}
+          {day = 0; month = 0; year = a2 - a1; prec = prec}
       | {day = 0; month = m2; year = a2} ->
           let r = 0 in
           let (month, r) =
             if m1 + r <= m2 then m2 - m1 - r, 0 else m2 - m1 - r + 12, 1
           in
           let year = a2 - a1 - r in
-          {day = 0; month = month; year = year; prec = prec; delta = 0}
+          {day = 0; month = month; year = year; prec = prec}
       | {day = j2; month = m2; year = a2} ->
           let (day, r) =
             if j1 <= j2 then j2 - j1, 0
@@ -84,7 +84,7 @@ let time_elapsed d1 d2 =
             if m1 + r <= m2 then m2 - m1 - r, 0 else m2 - m1 - r + 12, 1
           in
           let year = a2 - a1 - r in
-          {day = day; month = month; year = year; prec = prec; delta = 0}
+          {day = day; month = month; year = year; prec = prec}
 
 let strictly_before_dmy d1 d2 =
   let {day = d; month = m; year = y} = time_elapsed d2 d1 in

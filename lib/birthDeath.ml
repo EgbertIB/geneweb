@@ -35,7 +35,7 @@ let select conf base get_date find_oldest =
             Some x -> x
           | None -> -1
         in
-        Some {day = bd; month = bm; year = by; prec = Sure; delta = 0}
+        Some {day = bd; month = bm; year = by; prec = Sure}
     | None -> None
   in
   let (q, len) =
@@ -86,7 +86,7 @@ let select_family conf base get_date find_oldest =
             Some x -> x
           | None -> -1
         in
-        Some {day = bd; month = bm; year = by; prec = Sure; delta = 0}
+        Some {day = bd; month = bm; year = by; prec = Sure}
     | None -> None
   in
   let (q, len) =
@@ -237,7 +237,7 @@ let print_death conf base =
           (transl_nth conf "M/F" 0)
           (Date.string_of_age conf
              {day = 0; month = 0; year = fst ages_sum / fst ages_nb;
-              delta = 0; prec = Sure})
+              prec = Sure})
           conf.xhs;
       if snd ages_nb >= 3 then
         Wserver.printf "%s (%s) : %s<br%s>\n"
@@ -245,7 +245,7 @@ let print_death conf base =
           (transl_nth conf "M/F" 1)
           (Date.string_of_age conf
              {day = 0; month = 0; year = snd ages_sum / snd ages_nb;
-              delta = 0; prec = Sure})
+              prec = Sure})
           conf.xhs;
       Wserver.printf "<br%s>\n" conf.xhs;
       Wserver.printf "<div align=\"center\">\n";
@@ -594,7 +594,7 @@ let print_population_pyramid conf base =
   in
   let at_date =
     match p_getint conf.env "y" with
-      Some i -> {year = i; month = 31; day = 12; prec = Sure; delta = 0}
+      Some i -> {year = i; month = 31; day = 12; prec = Sure}
     | None -> conf.today
   in
   let nb_intervals = 150 / interval in

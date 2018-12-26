@@ -156,8 +156,7 @@ let date_of_string s i =
             else if day < 1 || day > 31 then error 3
             else
               let d =
-                {day = day; month = month; year = year; prec = precision;
-                 delta = 0}
+                {day = day; month = month; year = year; prec = precision}
               in
               Some (Dgreg (d, Dgregorian), i)
         | None ->
@@ -165,8 +164,7 @@ let date_of_string s i =
             else if month < 1 || month > 13 then error 4
             else
               let d =
-                {day = 0; month = month; year = year; prec = precision;
-                 delta = 0}
+                {day = 0; month = month; year = year; prec = precision}
               in
               Some (Dgreg (d, Dgregorian), i)
         end
@@ -179,7 +177,7 @@ let date_of_string s i =
           else failwith ("date_of_string " ^ s)
         else
           let d =
-            {day = 0; month = 0; year = year; prec = precision; delta = 0}
+            {day = 0; month = 0; year = year; prec = precision}
           in
           Some (Dgreg (d, Dgregorian), i)
   in
@@ -191,14 +189,14 @@ let date_of_string s i =
           let (year2, i) = champ (succ i) in
           let ((day2, month2, year2), i) = dmy2 year2 i in
           let dmy2 =
-            {day2 = day2; month2 = month2; year2 = year2; delta2 = 0}
+            {day2 = day2; month2 = month2; year2 = year2}
           in
           Some (Dgreg ({d with prec = OrYear dmy2}, cal), i)
         else if i + 1 < String.length s && s.[i] = '.' && s.[i+1] = '.' then
           let (year2, i) = champ (i + 2) in
           let ((day2, month2, year2), i) = dmy2 year2 i in
           let dmy2 =
-            {day2 = day2; month2 = month2; year2 = year2; delta2 = 0}
+            {day2 = day2; month2 = month2; year2 = year2}
           in
           Some (Dgreg ({d with prec = YearInt dmy2}, cal), i)
         else Some (dt, i)

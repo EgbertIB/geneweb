@@ -1292,7 +1292,7 @@ let make_conf from_addr request script_name env =
      n_connect = None;
      today =
        {day = tm.Unix.tm_mday; month = succ tm.Unix.tm_mon;
-        year = tm.Unix.tm_year + 1900; prec = Sure; delta = 0};
+        year = tm.Unix.tm_year + 1900; prec = Sure};
      today_wd = tm.Unix.tm_wday;
      time = tm.Unix.tm_hour, tm.Unix.tm_min, tm.Unix.tm_sec; ctime = utm;
      image_prefix =
