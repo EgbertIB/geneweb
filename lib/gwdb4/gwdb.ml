@@ -160,6 +160,41 @@ let pevent_name_of_string =
   | `String s -> Epers_Name s
   | _ -> assert false
 
+let dmy_of_json json =
+  { Def.day = get_int json "day"
+  ; Def.month = get_int json "month"
+  ; Def.year = get_int json "year"
+  }
+
+let cdate_of_json = function
+  | `Null -> Def.Cnone
+  | `String t -> Dtext t
+  | `Assoc json ->
+    let d1 = dmy_of_json (J.member "dmy1" json) in
+    let calendar = match get_string json "calendar" with
+      | "gregorian" -> Dgregorian
+      | "julian" -> Djulian
+      | "french" -> Dfrench
+      | "hebrew" -> Dhebrew
+      | s -> failwith @@ "Unknown calendar \"" ^  s ^ "\""
+    in
+    let prec =  match get_string json "prec" with
+      | "sure" -> Sure
+      | "about" -> About
+      | "maybe" -> Maybe
+      | "before" -> Before
+      | "after" -> After
+      | "or" -> OrYear (dmy_of_json (J.member "dmy2" json))
+      | "between" -> YearInt (dmy_of_json (J.member "dmy2" json))
+      | s -> failwith @@ "Unknown prec \"" ^  s ^ "\""
+
+
+let json_of_cdate cd = match Adef.od_of_cdate cd with
+    None -> `Null
+  | Some date -> json_of_date date
+
+
+
 let pevent_of_json json =
   { Def.epers_place = get_string json "place"
   ; epers_reason = get_string json "reason"
@@ -173,12 +208,20 @@ let pevent_of_json json =
 let get_pevents p =
   get_list p "pevents" pevent_of_json
 
-let get_psources : person -> istr
-let get_public_name : person -> istr
-let get_qualifiers : person -> istr list
+let get_psources _p = __LOC__
+
+let get_public_name _p = __LOC__
+
+let get_qualifiers _p = [ __LOC__ ] list
+
 let get_related : person -> iper list
+
 let get_rparents : person -> relation list
+
 let get_sex : person -> Def.sex
-let get_surname : person -> istr
-let get_surnames_aliases : person -> istr list
+
+let get_surname _p = __LOC__
+
+let get_surnames_aliases _p = __LOC__ list
+
 let get_titles : person -> title list *)
