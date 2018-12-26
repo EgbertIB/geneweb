@@ -14,8 +14,8 @@ type date =
 and calendar = Adef.calendar = Dgregorian | Djulian | Dfrench | Dhebrew
 and dmy =
   Adef.dmy =
-    { day : int; month : int; year : int; prec : precision; delta : int }
-and dmy2 = Adef.dmy2 = { day2 : int; month2 : int; year2 : int; delta2 : int }
+    { day : int; month : int; year : int; prec : precision }
+and dmy2 = Adef.dmy2 = { day2 : int; month2 : int; year2 : int }
 and precision =
   Adef.precision =
       Sure

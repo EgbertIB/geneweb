@@ -40,7 +40,7 @@ let gregorian_of_sdn prec sdn =
     if month < 10 then month + 3, year else month - 9, year + 1
   in
   let year = if year <= 0 then year - 1 else year in
-  {day = day; month = month; year = year; prec = prec; delta = 0}
+  {day = day; month = month; year = year; prec = prec}
 
 (* julian *)
 
@@ -67,7 +67,7 @@ let julian_of_sdn prec sdn =
     if month < 10 then month + 3, year else month - 9, year + 1
   in
   let year = if year <= 0 then year - 1 else year in
-  {day = day; month = month; year = year; prec = prec; delta = 0}
+  {day = day; month = month; year = year; prec = prec}
 
 (* french revolution *)
 (* this code comes from Remy Pialat; thanks to him *)
@@ -126,7 +126,7 @@ let french_of_sdn prec sdn =
   let ndays = sdn - fst_vend_sdn in
   let month = ndays / 30 + 1 in
   let day = ndays mod 30 + 1 in
-  {day = day; month = month; year = year; prec = prec; delta = 0}
+  {day = day; month = month; year = year; prec = prec}
 
 let sdn_of_french d =
   let greg_year = d.year + 1791 in
@@ -397,7 +397,7 @@ let hebrew_of_sdn prec sdn =
                 let (month, day) = glop inputDay tishri1 tishri1After in
                 year, month, day
   in
-  {day = day; month = month; year = year; prec = prec; delta = 0}
+  {day = day; month = month; year = year; prec = prec}
 
 (* from and to gregorian *)
 
@@ -411,46 +411,44 @@ let rec conv f f_max_month g g_max_month d =
   let sdn_max =
     if d.day = 0 then
       if d.month = 0 || d.month = g_max_month then
-        g {day = 1; month = 1; year = d.year + 1; prec = d.prec; delta = 0}
+        g {day = 1; month = 1; year = d.year + 1; prec = d.prec}
       else
         g
-          {day = 1; month = d.month + 1; year = d.year; prec = d.prec;
-           delta = 0}
+          {day = 1; month = d.month + 1; year = d.year; prec = d.prec}
     else sdn + 1
   in
   let prec = conv_prec f f_max_month g g_max_month d in
   let d1 = f prec sdn in
-  let d2 = f prec (sdn_max + d.delta) in
+  let d2 = f prec sdn_max in
   if d1.day = 1 && d2.day = 1 then
     if d1.month = 1 && d2.month = 1 then
       if d1.year + 1 = d2.year then
-        {day = 0; month = 0; year = d1.year; prec = prec; delta = 0}
-      else {d1 with delta = sdn_max + d.delta - sdn - 1}
+        {day = 0; month = 0; year = d1.year; prec = prec}
+      else d1
     else if
       d1.month + 1 = d2.month ||
       d1.month = f_max_month && d1.year + 1 = d2.year
     then
       {d1 with day = 0}
-    else {d1 with delta = sdn_max + d.delta - sdn - 1}
-  else {d1 with delta = sdn_max + d.delta - sdn - 1}
+    else d1
+  else d1
 and conv_prec f f_max_month g g_max_month d =
   let dmy_of_dmy2 dmy2 =
-    {day = dmy2.day2; month = dmy2.month2; year = dmy2.year2; prec = Sure;
-     delta = dmy2.delta2}
+    {day = dmy2.day2; month = dmy2.month2; year = dmy2.year2; prec = Sure}
   in
   match d.prec with
     OrYear d2 ->
       let d = dmy_of_dmy2 d2 in
       let d = conv f f_max_month g g_max_month d in
       let dmy2 =
-        {day2 = d.day; month2 = d.month; year2 = d.year; delta2 = 0}
+        {day2 = d.day; month2 = d.month; year2 = d.year}
       in
       OrYear dmy2
   | YearInt d2 ->
       let d = dmy_of_dmy2 d2 in
       let d = conv f f_max_month g g_max_month d in
       let dmy2 =
-        {day2 = d.day; month2 = d.month; year2 = d.year; delta2 = 0}
+        {day2 = d.day; month2 = d.month; year2 = d.year}
       in
       YearInt dmy2
   | prec -> prec

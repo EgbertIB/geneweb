@@ -936,18 +936,18 @@ let reconstitute_date_dmy2 conf var =
         Some m ->
           begin match get_number var "orday" conf.env with
             Some d ->
-              let dmy2 = {day2 = d; month2 = m; year2 = y; delta2 = 0} in
+              let dmy2 = {day2 = d; month2 = m; year2 = y} in
               if dmy2.day2 >= 1 && dmy2.day2 <= 31 && dmy2.month2 >= 1 &&
                  dmy2.month2 <= 13
               then
                 dmy2
               else let d = Date.dmy_of_dmy2 dmy2 in bad_date conf d
           | None ->
-              let dmy2 = {day2 = 0; month2 = m; year2 = y; delta2 = 0} in
+              let dmy2 = {day2 = 0; month2 = m; year2 = y} in
               if dmy2.month2 >= 1 && dmy2.month2 <= 13 then dmy2
               else let d = Date.dmy_of_dmy2 dmy2 in bad_date conf d
           end
-      | None -> {day2 = 0; month2 = 0; year2 = y; delta2 = 0}
+      | None -> {day2 = 0; month2 = 0; year2 = y}
       end
   | None -> raise ModErr
 
@@ -1013,7 +1013,7 @@ let reconstitute_date_dmy conf var =
             begin match get_number var "dd" conf.env with
               Some d ->
                 let d =
-                  {day = d; month = m; year = y; prec = prec; delta = 0}
+                  {day = d; month = m; year = y; prec = prec}
                 in
                 if d.day >= 1 && d.day <= 31 && d.month >= 1 && d.month <= 13
                 then
@@ -1021,12 +1021,12 @@ let reconstitute_date_dmy conf var =
                 else bad_date conf d
             | None ->
                 let d =
-                  {day = 0; month = m; year = y; prec = prec; delta = 0}
+                  {day = 0; month = m; year = y; prec = prec}
                 in
                 if d.month >= 1 && d.month <= 13 then Some d
                 else bad_date conf d
             end
-        | None -> Some {day = 0; month = 0; year = y; prec = prec; delta = 0}
+        | None -> Some {day = 0; month = 0; year = y; prec = prec}
         end
     | None -> None
   in

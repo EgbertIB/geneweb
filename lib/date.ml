@@ -62,8 +62,7 @@ let before_date d d1 =
     [Rem] : Non exporté en clair hors de ce module.                         *)
 (* ************************************************************************ *)
 let dmy_of_dmy2 dmy2 =
-  {day = dmy2.day2; month = dmy2.month2; year = dmy2.year2; prec = Sure;
-   delta = dmy2.delta2}
+  {day = dmy2.day2; month = dmy2.month2; year = dmy2.year2; prec = Sure}
 
 let code_date conf encoding d m y =
   let apply_date_code =
@@ -351,13 +350,13 @@ let decode_dmy conf d =
           let m = Printf.sprintf "%02d" month in d, m, string_of_int year
 
 let gregorian_precision conf d =
-  if d.delta = 0 then string_of_dmy conf d
-  else
-    let d2 =
-      Calendar.gregorian_of_sdn d.prec (Calendar.sdn_of_gregorian d + d.delta)
-    in
-    transl conf "between (date)" ^ " " ^ string_of_on_dmy conf d ^ " " ^
-    transl_nth conf "and" 0 ^ " " ^ string_of_on_dmy conf d2
+  (* if d.delta = 0 then  *)string_of_dmy conf d
+  (* else
+   *   let d2 =
+   *     Calendar.gregorian_of_sdn d.prec (Calendar.sdn_of_gregorian d + d.delta)
+   *   in
+   *   transl conf "between (date)" ^ " " ^ string_of_on_dmy conf d ^ " " ^
+   *   transl_nth conf "and" 0 ^ " " ^ string_of_on_dmy conf d2 *)
 
 let string_of_ondate_aux conf =
   function

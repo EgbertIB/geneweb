@@ -15,8 +15,8 @@ type date =
   | Dtext of string
 and calendar = Dgregorian | Djulian | Dfrench | Dhebrew
 and dmy =
-  { day : int; month : int; year : int; prec : precision; delta : int }
-and dmy2 = { day2 : int; month2 : int; year2 : int; delta2 : int }
+  { day : int; month : int; year : int; prec : precision }
+and dmy2 = { day2 : int; month2 : int; year2 : int }
 and precision =
     Sure
   | About
@@ -39,8 +39,7 @@ let compress d =
   let simple =
     match d.prec with
       Sure | About | Maybe | Before | After ->
-        d.day >= 0 && d.month >= 0 && d.year > 0 && d.year < 2500 &&
-        d.delta = 0
+        d.day >= 0 && d.month >= 0 && d.year > 0 && d.year < 2500
     | OrYear _ | YearInt _ -> false
   in
   if simple then
@@ -82,7 +81,7 @@ let uncompress x =
     | 4 -> After
     | _ -> Sure
   in
-  {day = day; month = month; year = year; prec = prec; delta = 0}
+  {day = day; month = month; year = year; prec = prec}
 
 let date_of_cdate =
   function
