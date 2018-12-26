@@ -110,7 +110,7 @@ let print_wizards_by_date conf list =
      (fun tm ->
         let dmy =
           {year = tm.Unix.tm_year + 1900; month = tm.Unix.tm_mon + 1; day = 0;
-           prec = Sure; delta = 0}
+           prec = Sure}
         in
         Wserver.printf "%s"
           (capitale (Date.string_of_ondate conf (Dgreg (dmy, Dgregorian)))));
@@ -369,7 +369,7 @@ let print_whole_wiznote conf base auth_file wz wfile (s, date) ho =
     begin let tm = Unix.localtime date in
       let dmy =
         {day = tm.Unix.tm_mday; month = tm.Unix.tm_mon + 1;
-         year = 1900 + tm.Unix.tm_year; prec = Sure; delta = 0}
+         year = 1900 + tm.Unix.tm_year; prec = Sure}
       in
       Wserver.printf "<p>\n";
       Wserver.printf "<tt>(%s %02d:%02d)</tt>\n"

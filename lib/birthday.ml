@@ -53,7 +53,7 @@ let gen_print conf base mois f_scan dead_people =
         match Adef.od_of_cdate (get_birth p), get_death p with
           Some (Dgreg (d, _)), (NotDead | DontKnowIfDead) ->
             if d.prec = Sure && d.day <> 0 && d.month <> 0 &&
-               d.month = mois && d.delta = 0
+               d.month = mois
             then
               if authorized_age conf base p then
                 let j = d.day in
@@ -66,7 +66,7 @@ let gen_print conf base mois f_scan dead_people =
             begin match Adef.od_of_cdate (get_birth p) with
               Some (Dgreg (dt, _)) ->
                 if dt.prec = Sure && dt.day <> 0 && dt.month <> 0 &&
-                   dt.month = mois && dt.delta = 0
+                   dt.month = mois
                 then
                   if authorized_age conf base p then
                     let j = dt.day in
@@ -79,7 +79,7 @@ let gen_print conf base mois f_scan dead_people =
                 begin match Adef.date_of_cdate d with
                   Dgreg (dt, _) ->
                     if dt.prec = Sure && dt.day <> 0 && dt.month <> 0 &&
-                       dt.month = mois && dt.delta = 0
+                       dt.month = mois
                     then
                       if authorized_age conf base p then
                         let j = dt.day in
@@ -233,7 +233,7 @@ let day_after d =
   in
   let (month, r) = if d.month + r > 12 then 1, 1 else d.month + r, 0 in
   let year = d.year + r in
-  {day = day; month = month; year = year; prec = Sure; delta = 0}
+  {day = day; month = month; year = year; prec = Sure}
 
 let print_anniv conf base day_name fphrase wd dt list =
   match list with

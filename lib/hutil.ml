@@ -191,7 +191,7 @@ let eval_julian_day conf =
        in
        let mm = getint ("m" ^ var) in
        let dd = getint ("d" ^ var) in
-       let dt = {day = dd; month = mm; year = yy; prec = Sure; delta = 0} in
+       let dt = {day = dd; month = mm; year = yy; prec = Sure} in
        match Util.p_getenv conf.env ("t" ^ var) with
          Some _ -> conv dt
        | None ->

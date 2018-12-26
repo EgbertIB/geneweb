@@ -1456,7 +1456,7 @@ let eval_predefined_apply conf _env f vl =
         let day = int_of_string (String.sub date_txt 8 2) in
         let date =
           Dgreg
-            ({day = day; month = month; year = year; prec = Sure; delta = 0},
+            ({day = day; month = month; year = year; prec = Sure},
              Dgregorian)
         in
         let time = String.sub date_txt 11 8 in

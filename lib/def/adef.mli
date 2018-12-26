@@ -10,8 +10,8 @@ type date =
   | Dtext of string
 and calendar = Dgregorian | Djulian | Dfrench | Dhebrew
 and dmy =
-  { day : int; month : int; year : int; prec : precision; delta : int }
-and dmy2 = { day2 : int; month2 : int; year2 : int; delta2 : int }
+  { day : int; month : int; year : int; prec : precision }
+and dmy2 = { day2 : int; month2 : int; year2 : int }
 and precision =
     Sure
   | About
