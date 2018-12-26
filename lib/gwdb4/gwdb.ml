@@ -1,6 +1,6 @@
-type iper
-type ifam
-type istr
+type iper = string
+type ifam = string
+type istr = string
 
 module J = Yojson.Basic.Util
 
@@ -15,21 +15,26 @@ let get_int js name =
 let get_list js name fn =
   J.member name js |> J.to_list |> List.map fn
 
-let string_of_iper x = x
-let string_of_ifam x = x
-let string_of_istr x = x
+let string_of_iper : iper -> string = fun x -> x
+let string_of_ifam : ifam -> string = fun x -> x
+let string_of_istr : istr -> string = fun x -> x
 
 let iper_of_string x = x
 let ifam_of_string x = x
 let istr_of_string x = x
 
-type person = Yojson.json
-type family = Yojson.json
+type person = Yojson.Basic.json
+type family = Yojson.Basic.json
 
-type relation = Yojson.json
-type title = Yojson.json
-type pers_event = Yojson.json
-type fam_event = Yojson.json
+type relation = (iper, istr) Def.gen_relation
+type title = istr Def.gen_title
+type pers_event = (iper, istr) Def.gen_pers_event
+type fam_event = (iper, istr) Def.gen_fam_event
+
+(* type relation = Yojson.json
+ * type title = Yojson.json
+ * type pers_event = Yojson.json
+ * type fam_event = Yojson.json *)
 
 type string_person_index
 
@@ -45,8 +50,8 @@ let dummy_istr = ""
 let eq_istr = (=)
 let is_empty_string = (=) ""
 let is_quest_string = (=) "?"
-let empty_person = `Null
-let empty_family = `Null
+let empty_person _ _ = `Null
+let empty_family _ _ = `Null
 
 let get_access p =
   match J.member "access" p with
@@ -71,7 +76,7 @@ let get_birth_place _p = ""
 let get_birth_note _p = ""
 let get_birth_src _p = ""
 
-let get_burial _p = Adef.cdate_None
+let get_burial _p = assert false
 let get_burial_place _p = ""
 let get_burial_note _p = ""
 let get_burial_src _p = ""
@@ -92,8 +97,8 @@ let get_first_names_aliases p =
 let get_image p =
   get_string p "image"
 
-let get_key_index p =
-  get_int p "index"
+let get_key_index : person -> iper = fun p ->
+  get_string p "index"
 
 let get_notes p =
   get_string p "note"
@@ -159,36 +164,35 @@ let pevent_name_of_string =
   | "will" -> Epers_Will
   | s -> Epers_Name s
 
-let dmy_of_json _json = failwith __LOC__
-  (* { Def.day = get_int json "day"
-   * ; Def.month = get_int json "month"
-   * ; Def.year = get_int json "year"
-   * } *)
+(* let dmy_of_json _json =
+ *   { Def.day = get_int json "day"
+ *   ; Def.month = get_int json "month"
+ *   ; Def.year = get_int json "year"
+ *   } *)
 
-let cdate_of_json = function
-  | `Null -> Adef.cdate_of_od None
-  | `String _t -> Adef.cdate_of_od None (* Dtext t *)
-  | `Assoc _json ->
-    failwith __LOC__
-    (* let d1 = dmy_of_json (J.member "dmy1" json) in
-     * let calendar = match get_string json "calendar" with
-     *   | "gregorian" -> Dgregorian
-     *   | "julian" -> Djulian
-     *   | "french" -> Dfrench
-     *   | "hebrew" -> Dhebrew
-     *   | s -> failwith @@ "Unknown calendar \"" ^  s ^ "\""
-     * in
-     * let prec =  match get_string json "prec" with
-     *   | "sure" -> Sure
-     *   | "about" -> About
-     *   | "maybe" -> Maybe
-     *   | "before" -> Before
-     *   | "after" -> After
-     *   | "or" -> OrYear (dmy_of_json (J.member "dmy2" json))
-     *   | "between" -> YearInt (dmy_of_json (J.member "dmy2" json))
-     *   | s -> failwith @@ "Unknown prec \"" ^  s ^ "\""
-     * in
-     * Dgreg ({ prec ; calendar ; }) *)
+(* let cdate_of_json = function
+ *   | `Null -> Adef.cdate_of_od None
+ *   | `String _t -> Adef.cdate_of_od None (\* Dtext t *\)
+ *   | `Assoc _json ->
+ *     let d1 = dmy_of_json (J.member "dmy1" json) in
+ *     let calendar = match get_string json "calendar" with
+ *       | "gregorian" -> Dgregorian
+ *       | "julian" -> Djulian
+ *       | "french" -> Dfrench
+ *       | "hebrew" -> Dhebrew
+ *       | s -> failwith @@ "Unknown calendar \"" ^  s ^ "\""
+ *     in
+ *     let prec =  match get_string json "prec" with
+ *       | "sure" -> Sure
+ *       | "about" -> About
+ *       | "maybe" -> Maybe
+ *       | "before" -> Before
+ *       | "after" -> After
+ *       | "or" -> OrYear (dmy_of_json (J.member "dmy2" json))
+ *       | "between" -> YearInt (dmy_of_json (J.member "dmy2" json))
+ *       | s -> failwith @@ "Unknown prec \"" ^  s ^ "\""
+ *     in
+ *     Dgreg ({ prec ; calendar ; }) *)
 
 let pevent_of_json json =
   { Def.epers_place = get_string json "place"
@@ -222,4 +226,117 @@ let get_surname _p = __LOC__
 
 let get_surnames_aliases _p = [ __LOC__ ]
 
-let get_titles _p = [ __LOC__ ]
+let get_titles : person -> title list = fun _p -> []
+
+module Collection = struct
+  type 'a t
+  let length _ = assert false
+  let map _ _ = assert false
+  let iter _ _ = assert false
+  let iteri _ _ = assert false
+  let fold _ _ _ = assert false
+  let fold_until _ _ _ _ = assert false
+  let iterator _ = assert false
+end
+
+module Marker = struct
+  type ('k, 'v) t
+  let get _ _ = assert false
+  let set _ _ _ = assert false
+end
+
+let ifam_marker _ = assert false
+let family_marker _ = assert false
+let iper_marker = assert false
+let person_marker = assert false
+let families = assert false
+let ifams = assert false
+let persons = assert false
+let ipers = assert false
+let date_of_last_change = assert false
+let p_surname = assert false
+let p_first_name = assert false
+let nobtit = assert false
+let person_misc_names = assert false
+let gen_person_misc_names = assert false
+let base_wiznotes_dir = assert false
+let base_notes_dir = assert false
+let base_notes_origin_file = assert false
+let base_notes_are_empty = assert false
+let base_notes_read_first_line = assert false
+let base_notes_read = assert false
+let ascends_array = assert false
+let persons_array = assert false
+let clear_families_array = assert false
+let clear_persons_array = assert false
+let clear_strings_array = assert false
+let clear_descends_array = assert false
+let clear_couples_array = assert false
+let clear_unions_array = assert false
+let clear_ascends_array = assert false
+let load_families_array = assert false
+let load_persons_array = assert false
+let load_strings_array = assert false
+let load_descends_array = assert false
+let load_couples_array = assert false
+let load_unions_array = assert false
+let load_ascends_array = assert false
+let base_strings_of_surname = assert false
+let base_strings_of_first_name = assert false
+let base_particles = assert false
+let base_visible_write = assert false
+let base_visible_get = assert false
+let spi_find = assert false
+let spi_next = assert false
+let spi_first = assert false
+let persons_of_surname = assert false
+let persons_of_first_name = assert false
+let persons_of_name = assert false
+let person_of_key = assert false
+let is_deleted_family = assert false
+let delete_family = assert false
+let insert_family = assert false
+let insert_person = assert false
+let patched_ascends = assert false
+let is_patched_person = assert false
+let commit_notes = assert false
+let commit_patches = assert false
+let insert_string = assert false
+let delete_key = assert false
+let patch_key = assert false
+let patch_name = assert false
+let patch_couple = assert false
+let patch_descend = assert false
+let patch_family = assert false
+let patch_union = assert false
+let patch_ascend = assert false
+let patch_person = assert false
+let nb_of_families = assert false
+let nb_of_persons = assert false
+let sou = assert false
+let foi = assert false
+let poi = assert false
+let family_of_gen_family = assert false
+let person_of_gen_person = assert false
+let gen_descend_of_descend = assert false
+let gen_couple_of_couple = assert false
+let gen_family_of_family = assert false
+let get_children = assert false
+let get_parent_array = assert false
+let get_mother = assert false
+let get_father = assert false
+let get_witnesses = assert false
+let get_relation = assert false
+let get_origin_file = assert false
+let get_marriage_src = assert false
+let get_marriage_note = assert false
+let get_marriage_place = assert false
+let get_marriage = assert false
+let get_fsources = assert false
+let get_fevents = assert false
+let get_divorce = assert false
+let get_comment = assert false
+let gen_person_of_person = assert false
+let get_family = assert false
+let get_consang = assert false
+let get_parents = assert false
