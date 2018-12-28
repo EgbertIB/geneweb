@@ -1,3 +1,5 @@
+open Def
+
 type iper = string
 type ifam = string
 type istr = string
@@ -26,17 +28,16 @@ let istr_of_string x = x
 type person = Yojson.Basic.json
 type family = Yojson.Basic.json
 
-type relation = (iper, istr) Def.gen_relation
-type title = istr Def.gen_title
-type pers_event = (iper, istr) Def.gen_pers_event
-type fam_event = (iper, istr) Def.gen_fam_event
+type relation = (iper, istr) gen_relation
+type title = istr gen_title
+type pers_event = (iper, istr) gen_pers_event
+type fam_event = (iper, istr) gen_fam_event
 
 type string_person_index
 
 type base = (string * (string -> string))
 
 let open_base name =
-  assert (name = "pierfit") ;
   ( name
   , fun request ->
     let url = Printf.sprintf "http://virt6:8529/_db/Trees/geneweb/%s/%s" name request in
@@ -55,7 +56,7 @@ let open_base name =
              String.length data);
         Curl.set_followlocation connection true;
         Curl.set_url connection url;
-        Curl.set_timeoutms connection 1000;
+        Curl.set_timeoutms connection 10000;
         Curl.perform connection;
         Curl.cleanup connection;
         res := Buffer.contents result
@@ -83,62 +84,18 @@ let empty_family _ _ = `Null
 
 let get_access p =
   match J.member "access" p with
-  | `Int 2 -> Def.Private
-  | `Int 1 -> Def.Public
-  | `Int 0 -> Def.IfTitles
-  | _ -> assert false
+  | `Int 2 -> Private
+  | `Int 1 -> Public
+  | `Int 0 -> IfTitles
+  | _ -> failwith __LOC__
 
 let get_aliases p =
-  match J.member "access" p with
+  match J.member "aliases" p with
   | `List l -> List.map J.to_string l
   | `Null -> []
-  | _ -> assert false
-
-let get_baptism _p = Adef.cdate_None
-let get_baptism_place _p = ""
-let get_baptism_note _p = ""
-let get_baptism_src _p = ""
-
-let get_birth _p = Adef.cdate_None
-let get_birth_place _p = ""
-let get_birth_note _p = ""
-let get_birth_src _p = ""
-
-let get_burial _p = assert false
-let get_burial_place _p = ""
-let get_burial_note _p = ""
-let get_burial_src _p = ""
-
-let get_death _p = Def.NotDead
-let get_death_place _p = ""
-let get_death_note _p = ""
-let get_death_src _p = ""
-
-let get_first_name p =
-  match J.member "firstname" p with
-  | `String s -> s
-  | _ -> ""
-
-let get_first_names_aliases p =
-  get_list p "first_names_aliases" J.to_string
-
-let get_image p =
-  get_string p "image"
-
-let get_key_index : person -> iper = fun p ->
-  get_string p "index"
-
-let get_notes p =
-  get_string p "note"
-
-let get_occ p =
-  get_int p "occ"
-
-let get_occupation p =
-  get_string p "occupation"
+  | _ -> failwith __LOC__
 
 let pevent_name_of_string =
-  let open Def in
   function
   | "birth" -> Epers_Birth
   | "baptism" -> Epers_Baptism
@@ -192,6 +149,75 @@ let pevent_name_of_string =
   | "will" -> Epers_Will
   | s -> Epers_Name s
 
+let pevent_of_json json =
+  { epers_place = get_string json "place"
+  ; epers_reason = get_string json "reason"
+  ; epers_note = get_string json "note"
+  ; epers_src = get_string json "src"
+  ; epers_name = pevent_name_of_string (get_string json "name")
+  ; epers_date = Adef.cdate_of_od None(*** date_of_json (J.member "member" json) ***)
+  ; epers_witnesses = [||]
+  }
+
+let get_pevents p =
+  get_list p "pevents" pevent_of_json
+
+let get_event_aux names fn =
+  let rec loop = function
+    | [] -> None
+    | e :: _ when List.mem e.epers_name names -> Some e
+    | _ :: tl -> loop tl
+  in
+  ( (fun p -> fn @@ loop (get_pevents p) )
+  , (fun p -> match loop (get_pevents p) with Some e -> e.epers_place | None -> "")
+  , (fun p -> match loop (get_pevents p) with Some e -> e.epers_note | None -> "")
+  , (fun p -> match loop (get_pevents p) with Some e -> e.epers_src | None -> "")
+  )
+
+let get_baptism, get_baptism_place, get_baptism_note, get_baptism_src =
+  get_event_aux [ Epers_Baptism ] @@
+  function Some e -> e.epers_date | None -> Adef.cdate_None
+
+let get_birth, get_birth_place, get_birth_note, get_birth_src =
+  get_event_aux [ Epers_Birth ] @@
+  function Some e -> e.epers_date | None -> Adef.cdate_None
+
+let get_burial, get_burial_place, get_burial_note, get_burial_src =
+  get_event_aux [ Epers_Cremation ; Epers_Burial ] @@
+  function
+  | Some { epers_name = Epers_Cremation ; epers_date } -> Cremated epers_date
+  | Some { epers_name = Epers_Burial ; epers_date } -> Buried epers_date
+  | _ -> UnknownBurial
+
+(* FIXME *)
+let get_death, get_death_place, get_death_note, get_death_src =
+  get_event_aux [ Epers_Death ] @@
+  function Some e -> Death (Unspecified, e.epers_date)
+         | None -> NotDead
+
+let get_first_name p =
+  match J.member "firstname" p with
+  | `String s -> s
+  | _ -> ""
+
+let get_first_names_aliases p =
+  get_list p "first_names_aliases" J.to_string
+
+let get_image p =
+  get_string p "image"
+
+let get_key_index : person -> iper = fun p ->
+  get_string p "index"
+
+let get_notes p =
+  get_string p "note"
+
+let get_occ p =
+  get_int p "occ"
+
+let get_occupation p =
+  get_string p "occupation"
+
 (* let dmy_of_json _json =
  *   { Def.day = get_int json "day"
  *   ; Def.month = get_int json "month"
@@ -221,19 +247,6 @@ let pevent_name_of_string =
  *       | s -> failwith @@ "Unknown prec \"" ^  s ^ "\""
  *     in
  *     Dgreg ({ prec ; calendar ; }) *)
-
-let pevent_of_json json =
-  { Def.epers_place = get_string json "place"
-  ; epers_reason = get_string json "reason"
-  ; epers_note = get_string json "note"
-  ; epers_src = get_string json "src"
-  ; epers_name = pevent_name_of_string (get_string json "name")
-  ; epers_date = Adef.cdate_of_od None(*** date_of_json (J.member "member" json) ***)
-  ; epers_witnesses = [||]
-  }
-
-let get_pevents p =
-  get_list p "pevents" pevent_of_json
 
 let get_psources _p = __LOC__
 
@@ -278,16 +291,17 @@ let foi (_, get) ifam =
   |> Yojson.Basic.from_string
 
 let poi (_, get) iper =
-  get @@ "person/" ^ iper
+  get @@ "persons/" ^ iper
   |> Yojson.Basic.from_string
+  |> J.member "_key"
 
 (* FIXME https://github.com/geneweb/geneweb/pull/726/ *)
-let json_of_cdate _ = assert false
-let json_of_relation_kind _ = assert false
-let json_of_divorce _ = assert false
-let json_of_fevent _ = assert false
-let json_of_death _ = assert false
-let json_of_burial _ = assert false
+let json_of_cdate _ = failwith __LOC__
+let json_of_relation_kind _ = failwith __LOC__
+let json_of_divorce _ = failwith __LOC__
+let json_of_fevent _ = failwith __LOC__
+let json_of_death _ = failwith __LOC__
+let json_of_burial _ = failwith __LOC__
 
 let family_of_gen_family _base (f, _c, _d)
   =
@@ -345,10 +359,45 @@ let person_of_gen_person _base (p, _a, _u) =
          ; ("key_index", `String p.key_index)
          ]
 
-let gen_person_of_person = assert false
-let gen_descend_of_descend = assert false
-let gen_couple_of_couple = assert false
-let gen_family_of_family = assert false
+let gen_person_of_person : person -> (iper, iper, istr) Def.gen_person =
+  fun p ->
+  let open Def in
+  { first_name = get_first_name p
+  ; surname = get_surname p
+  ; occ = get_occ p
+  ; image = get_image p
+  ; public_name = get_public_name p
+  ; qualifiers = get_qualifiers p
+  ; aliases = get_aliases p
+  ; first_names_aliases = get_first_names_aliases p
+  ; surnames_aliases = get_surnames_aliases p
+  ; titles = get_titles p
+  ; rparents = get_rparents p
+  ; related = get_related p
+  ; occupation = get_occupation p
+  ; sex = get_sex p
+  ; access = get_access p
+  ; birth = get_birth p
+  ; birth_place = get_birth_place p
+  ; birth_note = get_birth_note p
+  ; birth_src = get_birth_src p
+  ; baptism = get_baptism p
+  ; baptism_place = get_baptism_place p
+  ; baptism_note = get_baptism_note p
+  ; baptism_src = get_baptism_src p
+  ; death = get_death p
+  ; death_place = get_death_place p
+  ; death_note = get_death_note p
+  ; death_src = get_death_src p
+  ; burial = get_burial p
+  ; burial_place = get_burial_place p
+  ; burial_note = get_burial_note p
+  ; burial_src = get_burial_src p
+  ; pevents = get_pevents p
+  ; notes = get_notes p
+  ; psources = get_psources p
+  ; key_index = get_key_index p
+  }
 
 module Collection = struct
   type 'a t = 'a array
@@ -357,7 +406,7 @@ module Collection = struct
   let iter = Array.iter
   let iteri = Array.iteri
   let fold = Array.fold_left
-  let fold_until _ _ _ _ = assert false
+  let fold_until _ _ _ _ = failwith __LOC__
   let iterator c =
     let i = ref 0 in
     fun () ->
@@ -383,22 +432,22 @@ let of_list fn = function
 let ipers (_, get) : iper Collection.t =
   match Yojson.Basic.from_string (get "ipers") with
   | `List l -> (of_list J.to_string l)
-  | _ -> assert false
+  | _ -> failwith __LOC__
 
 let persons (_, get) =
   match Yojson.Basic.from_string (get "persons") with
   | `List l -> Array.of_list l
-  | _ -> assert false
+  | _ -> failwith __LOC__
 
 let ifams (_, get) : ifam Collection.t =
   match Yojson.Basic.from_string (get "ifams") with
   | `List l -> (of_list J.to_string l)
-  | _ -> assert false
+  | _ -> failwith __LOC__
 
 let families (_, get) =
   match Yojson.Basic.from_string (get "families") with
   | `List l -> Array.of_list l
-  | _ -> assert false
+  | _ -> failwith __LOC__
 
 let ifam_marker ifams init =
   Marker.create (Collection.length ifams) init
@@ -406,67 +455,118 @@ let ifam_marker ifams init =
 let iper_marker ipers init =
   Marker.create (Collection.length ipers) init
 
-let date_of_last_change = assert false
-let p_surname = assert false
-let p_first_name = assert false
-let nobtit = assert false
-let person_misc_names = assert false
-let gen_person_misc_names = assert false
-let base_wiznotes_dir = assert false
-let base_notes_dir = assert false
-let base_notes_origin_file = assert false
-let base_notes_are_empty = assert false
-let base_notes_read_first_line = assert false
-let base_notes_read = assert false
-let ascends_array = assert false
-let persons_array = assert false
-let base_strings_of_surname = assert false
-let base_strings_of_first_name = assert false
-let base_particles = assert false
-let base_visible_write = assert false
-let base_visible_get = assert false
-let spi_find = assert false
-let spi_next = assert false
-let spi_first = assert false
-let persons_of_surname = assert false
-let persons_of_first_name = assert false
-let persons_of_name = assert false
-let person_of_key = assert false
-let is_deleted_family = assert false
-let delete_family = assert false
-let insert_family = assert false
-let insert_person = assert false
-let patched_ascends = assert false
-let is_patched_person = assert false
-let commit_notes = assert false
-let commit_patches = assert false
-let insert_string = assert false
-let delete_key = assert false
-let patch_key = assert false
-let patch_name = assert false
-let patch_couple = assert false
-let patch_descend = assert false
-let patch_family = assert false
-let patch_union = assert false
-let patch_ascend = assert false
-let patch_person = assert false
-let nb_of_families = assert false
-let nb_of_persons = assert false
-let get_children = assert false
-let get_parent_array = assert false
-let get_mother = assert false
-let get_father = assert false
-let get_witnesses = assert false
-let get_relation = assert false
-let get_origin_file = assert false
-let get_marriage_src = assert false
-let get_marriage_note = assert false
-let get_marriage_place = assert false
-let get_marriage = assert false
-let get_fsources = assert false
-let get_fevents = assert false
-let get_divorce = assert false
-let get_comment = assert false
-let get_family = assert false
-let get_consang = assert false
-let get_parents = assert false
+let date_of_last_change _f = failwith __LOC__
+let p_surname _base = get_surname
+let p_first_name _base = get_first_name
+let nobtit _f = failwith __LOC__
+let person_misc_names _f = failwith __LOC__
+let gen_person_misc_names _f = failwith __LOC__
+let base_wiznotes_dir _f = failwith __LOC__
+let base_notes_dir _f = failwith __LOC__
+let base_notes_origin_file _f = failwith __LOC__
+let base_notes_are_empty _base _istr = true (* FIXME *)
+let base_notes_read_first_line _f = failwith __LOC__
+let base_notes_read _f = failwith __LOC__
+let ascends_array _f = failwith __LOC__
+let persons_array _base = failwith __LOC__
+let base_strings_of_surname _f = failwith __LOC__
+let base_strings_of_first_name _f = failwith __LOC__
+let base_particles _f = failwith __LOC__
+let base_visible_write _f = failwith __LOC__
+let base_visible_get _f = failwith __LOC__
+let spi_find _f = failwith __LOC__
+let spi_next _f = failwith __LOC__
+let spi_first _f = failwith __LOC__
+let persons_of_surname _f = failwith __LOC__
+let persons_of_first_name _f = failwith __LOC__
+let persons_of_name _f = failwith __LOC__
+
+let is_deleted_family _f = failwith __LOC__
+let delete_family _f = failwith __LOC__
+let insert_family _f = failwith __LOC__
+let insert_person _f = failwith __LOC__
+let patched_ascends _f = failwith __LOC__
+let is_patched_person _f = failwith __LOC__
+let commit_notes _f = failwith __LOC__
+let commit_patches _f = failwith __LOC__
+let insert_string _f = failwith __LOC__
+let delete_key _f = failwith __LOC__
+let patch_key _f = failwith __LOC__
+let patch_name _f = failwith __LOC__
+let patch_couple _f = failwith __LOC__
+let patch_descend _f = failwith __LOC__
+let patch_family _f = failwith __LOC__
+let patch_union _f = failwith __LOC__
+let patch_ascend _f = failwith __LOC__
+let patch_person _f = failwith __LOC__
+
+let nb_of_families : base -> int = fun (_, get) ->
+  get "nb_family"
+  |> Yojson.Basic.from_string
+  |> J.to_list
+  |> List.hd
+  |> J.to_int
+
+let nb_of_persons : base -> int = fun (_, get) ->
+  get "nb_person"
+  |> Yojson.Basic.from_string
+  |> J.to_list
+  |> List.hd
+  |> J.to_int
+
+let person_of_key : base -> string -> string -> int -> iper option =
+  fun (_, get) p n oc ->
+  (* FIXME *)
+  match
+    get (Printf.sprintf "persons?n=%s&p=%s&oc=%d" (Wserver.encode n) (Wserver.encode p) oc)
+    |> Yojson.Basic.from_string
+  with
+  | `List [] -> None
+  | `List (x :: _) -> Some (get_key_index x)
+  | _ -> assert false
+
+let get_children _f = failwith __LOC__
+let get_parent_array _f = failwith __LOC__
+let get_mother _f = failwith __LOC__
+let get_father _f = failwith __LOC__
+let get_witnesses _f = failwith __LOC__
+let get_relation _f = failwith __LOC__
+let get_origin_file _f = failwith __LOC__
+let get_marriage_src _f = failwith __LOC__
+let get_marriage_note _f = failwith __LOC__
+let get_marriage_place _f = failwith __LOC__
+let get_marriage _f = failwith __LOC__
+let get_fsources _f = failwith __LOC__
+let get_fevents _f = failwith __LOC__
+let get_divorce _f = failwith __LOC__
+let get_comment _f = failwith __LOC__
+let get_family _f = failwith __LOC__
+let get_consang _f = failwith __LOC__
+let get_parents _f = failwith __LOC__
+let get_fam_index f =
+  get_string f "fam_index"
+
+let gen_family_of_family : family -> (iper, ifam, istr) Def.gen_family =
+  fun f ->
+  let open Def in
+  { marriage = get_marriage f
+  ; marriage_place = get_marriage_place f
+  ; marriage_note = get_marriage_note f
+  ; marriage_src = get_marriage_src f
+  ; witnesses = get_witnesses f
+  ; relation = get_relation f
+  ; divorce = get_divorce f
+  ; fevents = get_fevents f
+  ; comment = get_comment f
+  ; origin_file = get_origin_file f
+  ; fsources = get_fsources f
+  ; fam_index = get_fam_index f
+  }
+
+let gen_couple_of_couple : family -> iper Def.gen_couple =
+  fun f ->
+  Adef.couple (get_father f) (get_mother f)
+
+let gen_descend_of_descend : family -> iper Def.gen_descend =
+  fun f ->
+ { Def.children = get_children f }
