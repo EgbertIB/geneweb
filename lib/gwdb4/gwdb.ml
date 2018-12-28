@@ -33,14 +33,21 @@ type title = istr gen_title
 type pers_event = (iper, istr) gen_pers_event
 type fam_event = (iper, istr) gen_fam_event
 
-type string_person_index
+type string_person_index =
+  { find : istr -> iper list
+  ; cursor : string -> istr
+  ; next : istr -> istr
+  }
 
 type base = (string * (string -> string))
 
 let open_base name =
   ( name
   , fun request ->
-    let url = Printf.sprintf "http://virt6:8529/_db/Trees/geneweb/%s/%s" name request in
+    let url = Printf.sprintf "http://virt6.liancourt.gnet:8529/_db/Trees/geneweb/%s/%s" name request in
+    print_endline __LOC__ ;
+    print_endline url ;
+    print_endline __LOC__ ;
     Curl.global_init Curl.CURLINIT_GLOBALALL;
     let res = ref "" in
     let result = Buffer.create 16384
@@ -455,9 +462,28 @@ let ifam_marker ifams init =
 let iper_marker ipers init =
   Marker.create (Collection.length ipers) init
 
-let date_of_last_change _f = failwith __LOC__
+let date_of_last_change _base = 0. (* FIXME? *)
 let p_surname _base = get_surname
 let p_first_name _base = get_first_name
+
+let persons_of_surname base = Foo
+  fun (_, get) p n oc ->
+  (* FIXME *)
+  match
+    get (Printf.sprintf "persons?n=%s&p=%s&oc=%d" (Wserver.encode n) (Wserver.encode p) oc)
+    |> Yojson.Basic.from_string
+  with
+  | `List [] -> None
+  | `List (x :: _) -> Some (get_key_index x)
+  | _ -> assert false
+
+
+
+failwith __LOC__
+let persons_of_first_name _f = failwith __LOC__
+let persons_of_name _f = failwith __LOC__
+
+
 let nobtit _f = failwith __LOC__
 let person_misc_names _f = failwith __LOC__
 let gen_person_misc_names _f = failwith __LOC__
@@ -477,9 +503,7 @@ let base_visible_get _f = failwith __LOC__
 let spi_find _f = failwith __LOC__
 let spi_next _f = failwith __LOC__
 let spi_first _f = failwith __LOC__
-let persons_of_surname _f = failwith __LOC__
-let persons_of_first_name _f = failwith __LOC__
-let persons_of_name _f = failwith __LOC__
+
 
 let is_deleted_family _f = failwith __LOC__
 let delete_family _f = failwith __LOC__
