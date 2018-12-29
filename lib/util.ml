@@ -712,7 +712,7 @@ let is_restricted (conf : config) base (ip : iper) =
 
 let pget (conf : config) base ip =
   if is_restricted conf base ip then Gwdb.empty_person base ip
-  else poi base ip
+  else let () = print_endline __LOC__ in poi base ip
 
 let string_gen_person base p = Futil.map_person_ps (fun p -> p) (sou base) p
 
@@ -2479,6 +2479,7 @@ let find_person_in_env conf base suff =
         p_getenv conf.env ("p" ^ suff), p_getenv conf.env ("n" ^ suff)
       with
         Some p, Some n ->
+        print_endline __LOC__ ;
           let occ =
             match p_getint conf.env ("oc" ^ suff) with
               Some oc -> oc
@@ -2486,16 +2487,20 @@ let find_person_in_env conf base suff =
           in
           begin match person_of_key base p n occ with
             Some ip ->
+            print_endline __LOC__ ;
               let p = pget conf base ip in
-              if is_hidden p then None
+              print_endline __LOC__;
+              if is_hidden p then let () = print_endline __LOC__ in None
               else if
-                not (is_hide_names conf p) || authorized_age conf base p
+                let () = print_endline __LOC__ in not (is_hide_names conf p) || authorized_age conf base p
               then
-                Some p
-              else None
-          | None -> None
+                let () = print_endline __LOC__ in Some p
+              else let () = print_endline __LOC__ in None
+          | None ->         print_endline __LOC__ ;
+None
           end
-      | _ -> None
+      | _ ->         print_endline __LOC__ ;
+None
 
 let person_exists conf base (fn, sn, oc) =
   match p_getenv conf.base_env "red_if_not_exist" with
