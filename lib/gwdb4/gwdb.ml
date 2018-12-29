@@ -1,21 +1,11 @@
 open Def
+open Json
 
 type iper = string
 type ifam = string
 type istr = string
 
 module J = Yojson.Basic.Util
-
-let get_string js name =
-  match J.member name js with
-  | `String s -> s
-  | _ -> ""
-
-let get_int js name =
-  J.to_int (J.member name js)
-
-let get_list js name fn =
-  J.member name js |> J.to_list |> List.map fn
 
 let string_of_iper : iper -> string = fun x -> x
 let string_of_ifam : ifam -> string = fun x -> x
@@ -44,7 +34,7 @@ type base = (string * (string -> string))
 let open_base name =
   ( name
   , fun request ->
-    let url = Printf.sprintf "http://virt6.liancourt.gnet:8529/_db/Trees/geneweb/%s/%s" name request in
+    let url = Printf.sprintf "http://localhost:8529/_db/Trees/geneweb/%s/%s" name request in
     print_endline __LOC__ ;
     print_endline url ;
     print_endline __LOC__ ;
@@ -102,70 +92,6 @@ let get_aliases p =
   | `Null -> []
   | _ -> failwith __LOC__
 
-let pevent_name_of_string =
-  function
-  | "birth" -> Epers_Birth
-  | "baptism" -> Epers_Baptism
-  | "death" -> Epers_Death
-  | "burial" -> Epers_Burial
-  | "cremation" -> Epers_Cremation
-  | "accomplishment" -> Epers_Accomplishment
-  | "aquisition" -> Epers_Acquisition
-  | "adhesion" -> Epers_Adhesion
-  | "baptismlds" -> Epers_BaptismLDS
-  | "barmitzvah" -> Epers_BarMitzvah
-  | "batmitzvah" -> Epers_BatMitzvah
-  | "benediction" -> Epers_Benediction
-  | "changename" -> Epers_ChangeName
-  | "circumcision" -> Epers_Circumcision
-  | "confirmation" -> Epers_Confirmation
-  | "confirmationlds" -> Epers_ConfirmationLDS
-  | "decoration" -> Epers_Decoration
-  | "demobilisationmilitaire" -> Epers_DemobilisationMilitaire
-  | "diploma" -> Epers_Diploma
-  | "distinction" -> Epers_Distinction
-  | "dotation" -> Epers_Dotation
-  | "dotationlds" -> Epers_DotationLDS
-  | "education" -> Epers_Education
-  | "election" -> Epers_Election
-  | "emigration" -> Epers_Emigration
-  | "excommunication" -> Epers_Excommunication
-  | "familylinklds" -> Epers_FamilyLinkLDS
-  | "firstcommunion" -> Epers_FirstCommunion
-  | "funeral" -> Epers_Funeral
-  | "graduate" -> Epers_Graduate
-  | "hospitalisation" -> Epers_Hospitalisation
-  | "illness" -> Epers_Illness
-  | "immigration" -> Epers_Immigration
-  | "listepassenger" -> Epers_ListePassenger
-  | "militarydistinction" -> Epers_MilitaryDistinction
-  | "militarypromotion" -> Epers_MilitaryPromotion
-  | "militaryservice" -> Epers_MilitaryService
-  | "mobilisationmilitaire" -> Epers_MobilisationMilitaire
-  | "naturalisation" -> Epers_Naturalisation
-  | "occupation" -> Epers_Occupation
-  | "ordination" -> Epers_Ordination
-  | "property" -> Epers_Property
-  | "recensement" -> Epers_Recensement
-  | "residence" -> Epers_Residence
-  | "retired" -> Epers_Retired
-  | "scellentchildlds" -> Epers_ScellentChildLDS
-  | "scellentparentlds" -> Epers_ScellentParentLDS
-  | "scellentspouselds" -> Epers_ScellentSpouseLDS
-  | "ventebien" -> Epers_VenteBien
-  | "will" -> Epers_Will
-  | s -> Epers_Name s
-
-let pevent_of_json json =
-  { epers_place = get_string json "place"
-  ; epers_reason = get_string json "reason"
-  ; epers_note = get_string json "note"
-  ; epers_src = get_string json "src"
-  ; epers_name = pevent_name_of_string (get_string json "name")
-  ; epers_date = Adef.cdate_of_od None(*** date_of_json (J.member "member" json) ***)
-  ; epers_witnesses = [||]
-  }
-
 let get_pevents p =
   get_list p "pevents" pevent_of_json
 
@@ -214,65 +140,44 @@ let get_image p =
   get_string p "image"
 
 let get_key_index : person -> iper = fun p ->
-  get_string p "index"
+  "pierfit:" ^ string_of_int (get_int ~__LOC__ p "index")      (* FIXME *)
 
 let get_notes p =
   get_string p "note"
 
 let get_occ p =
-  get_int p "occ"
+  get_int ~__LOC__ p "occ"
 
 let get_occupation p =
   get_string p "occupation"
 
-(* let dmy_of_json _json =
- *   { Def.day = get_int json "day"
- *   ; Def.month = get_int json "month"
- *   ; Def.year = get_int json "year"
- *   } *)
+let get_psources p =
+  get_string p "psources"
 
-(* let cdate_of_json = function
- *   | `Null -> Adef.cdate_of_od None
- *   | `String _t -> Adef.cdate_of_od None (\* Dtext t *\)
- *   | `Assoc _json ->
- *     let d1 = dmy_of_json (J.member "dmy1" json) in
- *     let calendar = match get_string json "calendar" with
- *       | "gregorian" -> Dgregorian
- *       | "julian" -> Djulian
- *       | "french" -> Dfrench
- *       | "hebrew" -> Dhebrew
- *       | s -> failwith @@ "Unknown calendar \"" ^  s ^ "\""
- *     in
- *     let prec =  match get_string json "prec" with
- *       | "sure" -> Sure
- *       | "about" -> About
- *       | "maybe" -> Maybe
- *       | "before" -> Before
- *       | "after" -> After
- *       | "or" -> OrYear (dmy_of_json (J.member "dmy2" json))
- *       | "between" -> YearInt (dmy_of_json (J.member "dmy2" json))
- *       | s -> failwith @@ "Unknown prec \"" ^  s ^ "\""
- *     in
- *     Dgreg ({ prec ; calendar ; }) *)
+let get_public_name p =
+  get_string p "public_name"
 
-let get_psources _p = __LOC__
+let get_qualifiers p =
+  get_list p "qualifiers" J.to_string
 
-let get_public_name _p = __LOC__
-
-let get_qualifiers _p = [ __LOC__ ]
-
-let get_related _p = []
+let get_related p =
+  get_list p "related" J.to_int
+  |> List.map (fun i -> "pierfit:" ^ string_of_int i) (* FIXME *)
 
 let get_rparents _p = []
 
-let get_sex p = match get_int p "sex" with
+let get_sex p = match get_int ~__LOC__ p "sex" with
   | 1 -> Def.Male
   | 2 -> Def.Female
   | _ -> Def.Neuter
 
-let get_surname _p = __LOC__
+let get_surname p =
+  match J.member "lastname" p with
+  | `String s -> s
+  | _ -> ""
 
-let get_surnames_aliases _p = [ __LOC__ ]
+let get_surnames_aliases p =
+  get_list p "surnames_aliases" J.to_string
 
 let get_titles : person -> title list = fun _p -> []
 
@@ -293,22 +198,34 @@ let load_ascends_array _ = ()
 
 let sou _base istr = istr
 
+let foi_cache = Hashtbl.create 42
+
 let foi (_, get) ifam =
-  get @@ "family/" ^ ifam
-  |> Yojson.Basic.from_string
+  try Hashtbl.find foi_cache ifam
+  with Not_found ->
+    let x =
+      get @@ "families/" ^ ifam
+      |> Yojson.Basic.from_string
+      |> J.member "family"
+    in
+    Hashtbl.add foi_cache ifam x ;
+    x
 
+let poi_cache = Hashtbl.create 42
+
+(* FIXME *)
 let poi (_, get) iper =
-  get @@ "persons/" ^ iper
-  |> Yojson.Basic.from_string
-  |> J.member "_key"
-
-(* FIXME https://github.com/geneweb/geneweb/pull/726/ *)
-let json_of_cdate _ = failwith __LOC__
-let json_of_relation_kind _ = failwith __LOC__
-let json_of_divorce _ = failwith __LOC__
-let json_of_fevent _ = failwith __LOC__
-let json_of_death _ = failwith __LOC__
-let json_of_burial _ = failwith __LOC__
+  try Hashtbl.find poi_cache iper
+  with Not_found ->
+    print_endline __LOC__ ;
+    let x =
+      match Yojson.Basic.from_string @@ get @@ "persons/" ^ iper with
+      | `List (hd :: _) -> print_endline __LOC__ ; J.member "person" hd
+      | x -> print_endline __LOC__ ; J.member "person" x
+    in
+    print_endline (Yojson.Basic.to_string x) ;
+    Hashtbl.add poi_cache iper x ;
+    x
 
 let family_of_gen_family _base (f, _c, _d)
   =
@@ -327,10 +244,13 @@ let family_of_gen_family _base (f, _c, _d)
          ; ("fam_index", `String f.fam_index)
          ]
 
+let json_of_death _ = failwith __LOC__
+let json_of_burial _ = failwith __LOC__
+
 let person_of_gen_person _base (p, _a, _u) =
   let open Def in
   `Assoc [ ("first_name", `String p.first_name)
-         ; ("surname", `String p.surname)
+         ; ("lastname", `String p.surname)
          ; ("occ", `Int p.occ)
          ; ("image", `String p.image)
          ; ("public_name", `String p.public_name)
@@ -439,22 +359,22 @@ let of_list fn = function
 let ipers (_, get) : iper Collection.t =
   match Yojson.Basic.from_string (get "ipers") with
   | `List l -> (of_list J.to_string l)
-  | _ -> failwith __LOC__
+  | _ -> print_endline __LOC__ ; [| (* FIXME *) |]
 
 let persons (_, get) =
   match Yojson.Basic.from_string (get "persons") with
   | `List l -> Array.of_list l
-  | _ -> failwith __LOC__
+  | _ -> print_endline __LOC__ ; [| (* FIXME *) |]
 
 let ifams (_, get) : ifam Collection.t =
   match Yojson.Basic.from_string (get "ifams") with
   | `List l -> (of_list J.to_string l)
-  | _ -> failwith __LOC__
+  | _ -> print_endline __LOC__ ; [| (* FIXME *) |]
 
 let families (_, get) =
   match Yojson.Basic.from_string (get "families") with
   | `List l -> Array.of_list l
-  | _ -> failwith __LOC__
+  | _ -> print_endline __LOC__ ; [| (* FIXME *) |]
 
 let ifam_marker ifams init =
   Marker.create (Collection.length ifams) init
@@ -466,25 +386,23 @@ let date_of_last_change _base = 0. (* FIXME? *)
 let p_surname _base = get_surname
 let p_first_name _base = get_first_name
 
-let persons_of_surname base = Foo
-  fun (_, get) p n oc ->
-  (* FIXME *)
-  match
-    get (Printf.sprintf "persons?n=%s&p=%s&oc=%d" (Wserver.encode n) (Wserver.encode p) oc)
-    |> Yojson.Basic.from_string
-  with
-  | `List [] -> None
-  | `List (x :: _) -> Some (get_key_index x)
-  | _ -> assert false
-
-
-
+let persons_of_surname _base =
+  (* fun (_, get) p n oc ->
+   * (\* FIXME *\)
+   * match
+   *   get (Printf.sprintf "persons?n=%s&p=%s&oc=%d" (Wserver.encode n) (Wserver.encode p) oc)
+   *   |> Yojson.Basic.from_string
+   * with
+   * | `List [] -> None
+   * | `List (x :: _) -> Some (get_key_index x)
+   * | _ -> assert false *)
 failwith __LOC__
 let persons_of_first_name _f = failwith __LOC__
 let persons_of_name _f = failwith __LOC__
 
+let nobtit _base _ _ p =
+  get_list p "titles" title_of_json
 
-let nobtit _f = failwith __LOC__
 let person_misc_names _f = failwith __LOC__
 let gen_person_misc_names _f = failwith __LOC__
 let base_wiznotes_dir _f = failwith __LOC__
@@ -532,7 +450,7 @@ let nb_of_families : base -> int = fun (_, get) ->
   |> J.to_int
 
 let nb_of_persons : base -> int = fun (_, get) ->
-  get "nb_person"
+  get "nb_persons"
   |> Yojson.Basic.from_string
   |> J.to_list
   |> List.hd
@@ -546,27 +464,76 @@ let person_of_key : base -> string -> string -> int -> iper option =
     |> Yojson.Basic.from_string
   with
   | `List [] -> None
-  | `List (x :: _) -> Some (get_key_index x)
+  | `List (x :: _) ->
+    print_endline __LOC__;
+    print_endline @@ Yojson.Basic.to_string x;
+    print_endline __LOC__ ;
+    let x = J.member "person" x in
+    print_endline @@ Yojson.Basic.to_string x ;
+    print_endline __LOC__ ;
+    Some (get_key_index x)
   | _ -> assert false
 
-let get_children _f = failwith __LOC__
+(* FIXME: get ids instead of ints *)
+let get_children f =
+  get_list f "children" J.to_int
+  |> Array.of_list
+  |> Array.map (fun i -> "pierfit:" ^ string_of_int i)
+
 let get_parent_array _f = failwith __LOC__
-let get_mother _f = failwith __LOC__
-let get_father _f = failwith __LOC__
-let get_witnesses _f = failwith __LOC__
-let get_relation _f = failwith __LOC__
-let get_origin_file _f = failwith __LOC__
-let get_marriage_src _f = failwith __LOC__
-let get_marriage_note _f = failwith __LOC__
-let get_marriage_place _f = failwith __LOC__
-let get_marriage _f = failwith __LOC__
-let get_fsources _f = failwith __LOC__
-let get_fevents _f = failwith __LOC__
-let get_divorce _f = failwith __LOC__
-let get_comment _f = failwith __LOC__
-let get_family _f = failwith __LOC__
-let get_consang _f = failwith __LOC__
-let get_parents _f = failwith __LOC__
+
+(* FIXME: father/mother should be string basename:xxxx *)
+let get_mother f =
+  match J.member "parents" f with
+  | `List [ _ ; `Int mother ] -> "pierfit:" ^ string_of_int mother
+  | _ -> failwith __LOC__
+
+let get_father f =
+  match J.member "parents" f with
+  | `List [ `Int father ; _ ] -> "pierfit:" ^ string_of_int father
+  | _ -> failwith __LOC__
+
+let get_witnesses f : iper array =
+  Array.of_list (get_list f "witnesses" J.to_string)
+
+let get_relation f =
+  J.member "relation_kind" f
+  |> relation_kind_of_json
+
+let get_origin_file f =
+  get_string f "origin_file"
+
+let get_marriage_src f =
+  get_string f "marriage_src"
+
+let get_marriage_note f =
+  get_string f "marriage_note"
+
+let get_marriage_place f =
+  get_string f "marriage_place"
+
+let get_marriage f =
+  cdate_of_json @@ J.member "marriage" f
+
+let get_fsources f =
+  get_string f "fsources"
+
+let get_fevents f =
+  get_list f "fevents" fevent_of_json
+
+let get_divorce f =
+  divorce_of_json (J.member "divorce" f)
+
+let get_comment f =
+  get_string f "comment"
+
+let get_family p =
+  match J.member "families" p with
+  | `List list -> Array.map J.to_string (Array.of_list list)
+  | _ -> [||]
+
+let get_consang _f = Adef.no_consang (* FIXME *)
+let get_parents _f = None (* FIXME *)
 let get_fam_index f =
   get_string f "fam_index"
 
