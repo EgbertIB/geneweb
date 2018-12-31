@@ -35,9 +35,9 @@ let open_base name =
   ( name
   , fun request ->
     let url = Printf.sprintf "http://localhost:8529/_db/Trees/geneweb/%s/%s" name request in
-    print_endline __LOC__ ;
-    print_endline url ;
-    print_endline __LOC__ ;
+    (* print_endline __LOC__ ;
+     * print_endline url ;
+     * print_endline __LOC__ ; *)
     Curl.global_init Curl.CURLINIT_GLOBALALL;
     let res = ref "" in
     let result = Buffer.create 16384
@@ -164,7 +164,13 @@ let get_related p =
   get_list p "related" J.to_int
   |> List.map (fun i -> "pierfit:" ^ string_of_int i) (* FIXME *)
 
-let get_rparents _p = []
+let get_rparents p =
+  get_list p "rparents" rparent_of_json
+
+let get_parents p =
+  match J.member "parents" p with
+  | `Int i -> Some ("pierfit:" ^ string_of_int i)
+  | _ -> None (* FIXME *)
 
 let get_sex p = match get_int ~__LOC__ p "sex" with
   | 1 -> Def.Male
@@ -217,13 +223,13 @@ let poi_cache = Hashtbl.create 42
 let poi (_, get) iper =
   try Hashtbl.find poi_cache iper
   with Not_found ->
-    print_endline __LOC__ ;
+    print_endline @@ Printf.sprintf "%s:%s" __LOC__ iper ;
     let x =
       match Yojson.Basic.from_string @@ get @@ "persons/" ^ iper with
-      | `List (hd :: _) -> print_endline __LOC__ ; J.member "person" hd
-      | x -> print_endline __LOC__ ; J.member "person" x
+      | `List (hd :: _) -> (* print_endline __LOC__ ;  *)J.member "person" hd
+      | x -> (* print_endline __LOC__ ;  *)J.member "person" x
     in
-    print_endline (Yojson.Basic.to_string x) ;
+    (* print_endline (Yojson.Basic.to_string x) ; *)
     Hashtbl.add poi_cache iper x ;
     x
 
@@ -258,9 +264,9 @@ let person_of_gen_person _base (p, _a, _u) =
          ; ("aliases", `List (List.map (fun x -> `String x) p.aliases) )
          ; ("first_names_aliases", `List (List.map (fun x -> `String x) p.first_names_aliases) )
          ; ("surnames_aliases", `List (List.map (fun x -> `String x) p.surnames_aliases) )
-         ; ("titles", `List [])   (* FIXME *)
-         ; ("rparents", `List [])
-         ; ("related", `List [])
+         ; ("titles", `List (List.map json_of_title p.titles))
+         ; ("rparents", `List (List.map json_of_rparent p.rparents))
+         ; ("related", `List (List.map (fun x -> `String x) p.related))
          ; ("occupation", `String p.occupation)
          ; ("sex", match p.sex with Male -> `Int 0 | Female -> `Int 1 | Neuter -> `Int 2)
          ; ("access", match p.access with Private -> `Int 2 | Public  -> `Int 1 | IfTitles -> `Int 0)
@@ -280,7 +286,7 @@ let person_of_gen_person _base (p, _a, _u) =
          ; ("burial_place", `String p.burial_place)
          ; ("burial_note", `String p.burial_note)
          ; ("burial_src", `String p.burial_src)
-         ; ("pevents", `List []) (* FIXME *)
+         ; ("pevents", `List (List.map json_of_pevent p.pevents))
          ; ("notes", `String p.notes)
          ; ("psources", `String p.psources)
          ; ("key_index", `String p.key_index)
@@ -465,12 +471,12 @@ let person_of_key : base -> string -> string -> int -> iper option =
   with
   | `List [] -> None
   | `List (x :: _) ->
-    print_endline __LOC__;
-    print_endline @@ Yojson.Basic.to_string x;
-    print_endline __LOC__ ;
+    (* print_endline __LOC__;
+     * print_endline @@ Yojson.Basic.to_string x;
+     * print_endline __LOC__ ; *)
     let x = J.member "person" x in
-    print_endline @@ Yojson.Basic.to_string x ;
-    print_endline __LOC__ ;
+    (* print_endline @@ Yojson.Basic.to_string x ;
+     * print_endline __LOC__ ; *)
     Some (get_key_index x)
   | _ -> assert false
 
@@ -533,7 +539,7 @@ let get_family p =
   | _ -> [||]
 
 let get_consang _f = Adef.no_consang (* FIXME *)
-let get_parents _f = None (* FIXME *)
+
 let get_fam_index f =
   get_string f "fam_index"
 

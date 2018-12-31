@@ -8,8 +8,8 @@ let get_string js name =
   | `String s -> s
   | _ -> ""
 
-let get_int ~__LOC__ js name =
-  print_endline __LOC__ ;
+let get_int ~__LOC__:_ js name =
+  (* print_endline __LOC__ ; *)
   J.to_int (J.member name js)
 
 let get_list js name fn =
@@ -208,13 +208,17 @@ let pevent_name_of_string = function
   | "will" -> Epers_Will
   | s -> Epers_Name s
 
+let json_of_pevent_witness _w = assert false
+let pevent_witness_of_json _json = assert false
+
 let json_of_pevent pevent =
   `Assoc [ ("place", `String pevent.epers_place)
          ; ("reason", `String pevent.epers_reason)
          ; ("note", `String pevent.epers_note)
          ; ("src", `String pevent.epers_src)
          ; ("name", json_of_pevent_name pevent.epers_name)
-         ; ("date", json_of_cdate pevent.epers_date);
+         ; ("date", json_of_cdate pevent.epers_date)
+         ; ("witnesses", `List [] (* (Array.to_list @@ Array.map json_of_pevent_witness pevent.epers_witnesses) *) )
          ]
 (* FIXME: witnesses *)
 
@@ -225,7 +229,7 @@ let pevent_of_json json =
   ; epers_src = get_string json "src"
   ; epers_name = pevent_name_of_string (get_string json "name")
   ; epers_date = cdate_of_json (J.member "date" json)
-  ; epers_witnesses = [||]      (* FIXME *)
+  ; epers_witnesses = [||] (* Array.of_list (get_list json "witnesses" pevent_witness_of_json) *)
   }
 
 let json_of_title_name = function
@@ -355,3 +359,32 @@ let divorce_of_json = function
   | `Null -> NotDivorced
   | `Bool true -> Separated
   | date -> Divorced (cdate_of_json date)
+
+let json_of_relation_type = function
+  | Adoption -> `String "adoption"
+  | Recognition -> `String "recognition"
+  | CandidateParent -> `String "candidate_parent"
+  | GodParent -> `String "god_parent"
+  | FosterParent -> `String "foster_parent"
+
+let relation_type_of_json = function
+  | `String "adoption" -> Adoption
+  | `String "recognition" -> Recognition
+  | `String "candidate_parent" -> CandidateParent
+  | `String "god_parent" -> GodParent
+  | `String "foster_parent" -> FosterParent
+  | _ -> failwith __LOC__
+
+let json_of_rparent gen_relation =
+  `Assoc [ ("type", json_of_relation_type gen_relation.r_type )
+         ; ("source", `String gen_relation.r_sources)
+         ; ("father", match gen_relation.r_fath with Some i -> `String i | _ -> `Null)
+         ; ("mother", match gen_relation.r_moth with Some i -> `String i | _ -> `Null)
+         ]
+
+let rparent_of_json json =
+  { r_type = relation_type_of_json (J.member "type" json)
+  ; r_fath = (match (J.member "father" json) with `String i -> Some i | _ -> None)
+  ; r_moth = (match (J.member "mother" json) with `String i -> Some i | _ -> None)
+  ; r_sources = get_string json "source"
+  }
