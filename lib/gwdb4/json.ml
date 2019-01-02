@@ -12,7 +12,7 @@ let get_int ~__LOC__:_ js name =
   (* print_endline __LOC__ ; *)
   J.to_int (J.member name js)
 
-let get_list js name fn =
+let get_list name fn js =
   J.member name js |> J.to_list |> List.map fn
 
 (** gwdb to json  *)
@@ -347,7 +347,7 @@ let fevent_of_json json =
   ; efam_src = get_string json "src"
   ; efam_name = fevent_name_of_string (J.member "name" json)
   ; efam_date = cdate_of_json (J.member "date" json)
-  ; efam_witnesses = Array.of_list (get_list json "witnesses" fevent_witness_of_json)
+  ; efam_witnesses = Array.of_list (get_list "witnesses" fevent_witness_of_json json)
   }
 
 let json_of_divorce = function

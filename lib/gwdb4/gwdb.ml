@@ -23,12 +23,6 @@ type title = istr gen_title
 type pers_event = (iper, istr) gen_pers_event
 type fam_event = (iper, istr) gen_fam_event
 
-type string_person_index =
-  { find : istr -> iper list
-  ; cursor : string -> istr
-  ; next : istr -> istr
-  }
-
 type base = (string * (string -> string))
 
 let open_base name =
@@ -93,7 +87,7 @@ let get_aliases p =
   | _ -> failwith __LOC__
 
 let get_pevents p =
-  get_list p "pevents" pevent_of_json
+  get_list "pevents" pevent_of_json p
 
 let get_event_aux names fn =
   let rec loop = function
@@ -134,7 +128,7 @@ let get_first_name p =
   | _ -> ""
 
 let get_first_names_aliases p =
-  get_list p "first_names_aliases" J.to_string
+  get_list "first_names_aliases" J.to_string p
 
 let get_image p =
   get_string p "image"
@@ -158,14 +152,14 @@ let get_public_name p =
   get_string p "public_name"
 
 let get_qualifiers p =
-  get_list p "qualifiers" J.to_string
+  get_list "qualifiers" J.to_string p
 
 let get_related p =
-  get_list p "related" J.to_int
+  get_list "related" J.to_int p
   |> List.map (fun i -> "pierfit:" ^ string_of_int i) (* FIXME *)
 
 let get_rparents p =
-  get_list p "rparents" rparent_of_json
+  get_list "rparents" rparent_of_json p
 
 let get_parents p =
   match J.member "parents" p with
@@ -183,7 +177,7 @@ let get_surname p =
   | _ -> ""
 
 let get_surnames_aliases p =
-  get_list p "surnames_aliases" J.to_string
+  get_list "surnames_aliases" J.to_string p
 
 let get_titles : person -> title list = fun _p -> []
 
@@ -392,22 +386,44 @@ let date_of_last_change _base = 0. (* FIXME? *)
 let p_surname _base = get_surname
 let p_first_name _base = get_first_name
 
-let persons_of_surname _base =
-  (* fun (_, get) p n oc ->
-   * (\* FIXME *\)
-   * match
-   *   get (Printf.sprintf "persons?n=%s&p=%s&oc=%d" (Wserver.encode n) (Wserver.encode p) oc)
-   *   |> Yojson.Basic.from_string
-   * with
-   * | `List [] -> None
-   * | `List (x :: _) -> Some (get_key_index x)
-   * | _ -> assert false *)
-failwith __LOC__
-let persons_of_first_name _f = failwith __LOC__
-let persons_of_name _f = failwith __LOC__
+type string_person_index =
+  { find : istr -> iper list
+  ; cursor : string -> istr
+  ; next : istr -> istr
+  }
+
+let mk_spi fn (_, get) =
+  { find = begin fun istr ->
+        match get (fn istr)
+        |> Yojson.Basic.from_string
+        with
+        | `List l -> List.map (fun x -> J.to_string @@ J.member "_key" x) l
+        | _ -> []
+      end
+  ; cursor = begin fun _ -> assert false end
+  ; next = begin fun _ -> assert false end
+  }
+
+
+let spi_find spi = spi.find
+let spi_first spi = spi.cursor
+let spi_next (spi : string_person_index) istr (_need_whole_list : bool) = spi.next istr, 1
+
+let persons_of_surname =
+  mk_spi (fun istr -> Printf.sprintf "persons?n=%s" (Wserver.encode istr))
+
+let persons_of_first_name  =
+  mk_spi (fun istr -> Printf.sprintf "persons?p=%s" (Wserver.encode istr))
+
+(* FIXME! *)
+let persons_of_name _base _istr = []
+
+let base_strings_of_surname _base _istr = [] (* FIXME *)
+
+let base_strings_of_first_name _base _istr = [] (* FIXME *)
 
 let nobtit _base _ _ p =
-  get_list p "titles" title_of_json
+  get_list "titles" title_of_json p
 
 let person_misc_names _f = failwith __LOC__
 let gen_person_misc_names _f = failwith __LOC__
@@ -419,15 +435,9 @@ let base_notes_read_first_line _f = failwith __LOC__
 let base_notes_read _f = failwith __LOC__
 let ascends_array _f = failwith __LOC__
 let persons_array _base = failwith __LOC__
-let base_strings_of_surname _f = failwith __LOC__
-let base_strings_of_first_name _f = failwith __LOC__
 let base_particles _f = failwith __LOC__
 let base_visible_write _f = failwith __LOC__
 let base_visible_get _f = failwith __LOC__
-let spi_find _f = failwith __LOC__
-let spi_next _f = failwith __LOC__
-let spi_first _f = failwith __LOC__
-
 
 let is_deleted_family _f = failwith __LOC__
 let delete_family _f = failwith __LOC__
@@ -482,7 +492,7 @@ let person_of_key : base -> string -> string -> int -> iper option =
 
 (* FIXME: get ids instead of ints *)
 let get_children f =
-  get_list f "children" J.to_int
+  get_list "children" J.to_int f
   |> Array.of_list
   |> Array.map (fun i -> "pierfit:" ^ string_of_int i)
 
@@ -500,7 +510,7 @@ let get_father f =
   | _ -> failwith __LOC__
 
 let get_witnesses f : iper array =
-  Array.of_list (get_list f "witnesses" J.to_string)
+  Array.of_list (get_list "witnesses" J.to_string f)
 
 let get_relation f =
   J.member "relation_kind" f
@@ -525,7 +535,7 @@ let get_fsources f =
   get_string f "fsources"
 
 let get_fevents f =
-  get_list f "fevents" fevent_of_json
+  get_list "fevents" fevent_of_json f
 
 let get_divorce f =
   divorce_of_json (J.member "divorce" f)

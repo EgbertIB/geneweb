@@ -180,17 +180,29 @@ val persons_of_name : base -> string -> iper list
 val persons_of_first_name : base -> string_person_index
 val persons_of_surname : base -> string_person_index
 
+(** first [first/sur]name starting with that string *)
 val spi_first : string_person_index -> string -> istr
-  (* first [first/sur]name starting with that string *)
+
+(** next [first/sur]name by Gutil.alphabetical order *)
 val spi_next : string_person_index -> istr -> bool -> istr * int
-  (* next [first/sur]name by Gutil.alphabetical order *)
+
+(** all persons having that [first/sur]name *)
 val spi_find : string_person_index -> istr -> iper list
-  (* all persons having that [first/sur]name *)
 
 val base_visible_get : base -> (person -> bool) -> iper -> bool
 val base_visible_write : base -> unit
 val base_particles : base -> string list
+
+(** [base_strings_of_first_name base x]
+    Return the list of first names (as [istr]) being equal to [x]
+    using  {!val:Name.crush_lower} comparison.
+*)
 val base_strings_of_first_name : base -> string -> istr list
+
+(** [base_strings_of_surname base x]
+    Return the list of surnames (as [istr]) being equal to [x]
+    using  {!val:Name.crush_lower} comparison.
+*)
 val base_strings_of_surname : base -> string -> istr list
 
 val load_ascends_array : base -> unit
