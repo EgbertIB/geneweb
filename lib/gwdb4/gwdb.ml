@@ -29,9 +29,9 @@ let open_base name =
   ( name
   , fun request ->
     let url = Printf.sprintf "http://localhost:8529/_db/Trees/geneweb/%s/%s" name request in
-    (* print_endline __LOC__ ;
-     * print_endline url ;
-     * print_endline __LOC__ ; *)
+    print_endline __LOC__ ;
+    print_endline url ;
+    print_endline __LOC__ ;
     Curl.global_init Curl.CURLINIT_GLOBALALL;
     let res = ref "" in
     let result = Buffer.create 16384
@@ -134,7 +134,7 @@ let get_image p =
   get_string p "image"
 
 let get_key_index : person -> iper = fun p ->
-  "pierfit:" ^ string_of_int (get_int ~__LOC__ p "index")      (* FIXME *)
+  get_string p "index"
 
 let get_notes p =
   get_string p "note"
@@ -155,15 +155,14 @@ let get_qualifiers p =
   get_list "qualifiers" J.to_string p
 
 let get_related p =
-  get_list "related" J.to_int p
-  |> List.map (fun i -> "pierfit:" ^ string_of_int i) (* FIXME *)
+  get_list "related" J.to_string p
 
 let get_rparents p =
   get_list "rparents" rparent_of_json p
 
 let get_parents p =
   match J.member "parents" p with
-  | `Int i -> Some ("pierfit:" ^ string_of_int i)
+  | `String i -> Some i
   | _ -> None (* FIXME *)
 
 let get_sex p = match get_int ~__LOC__ p "sex" with
@@ -488,25 +487,24 @@ let person_of_key : base -> string -> string -> int -> iper option =
     (* print_endline @@ Yojson.Basic.to_string x ;
      * print_endline __LOC__ ; *)
     Some (get_key_index x)
-  | _ -> assert false
+  | x -> failwith (Yojson.Basic.to_string x)
 
 (* FIXME: get ids instead of ints *)
 let get_children f =
-  get_list "children" J.to_int f
+  get_list "children" J.to_string f
   |> Array.of_list
-  |> Array.map (fun i -> "pierfit:" ^ string_of_int i)
 
 let get_parent_array _f = failwith __LOC__
 
 (* FIXME: father/mother should be string basename:xxxx *)
 let get_mother f =
   match J.member "parents" f with
-  | `List [ _ ; `Int mother ] -> "pierfit:" ^ string_of_int mother
+  | `List [ _ ; `String mother ] -> mother
   | _ -> failwith __LOC__
 
 let get_father f =
   match J.member "parents" f with
-  | `List [ `Int father ; _ ] -> "pierfit:" ^ string_of_int father
+  | `List [ `String father ; _ ] -> father
   | _ -> failwith __LOC__
 
 let get_witnesses f : iper array =
