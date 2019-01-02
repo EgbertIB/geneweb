@@ -438,7 +438,6 @@ let base_particles _f = failwith __LOC__
 let base_visible_write _f = failwith __LOC__
 let base_visible_get _f = failwith __LOC__
 
-let is_deleted_family _f = failwith __LOC__
 let delete_family _f = failwith __LOC__
 let insert_family _f = failwith __LOC__
 let insert_person _f = failwith __LOC__
