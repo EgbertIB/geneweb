@@ -83,15 +83,14 @@ let uncompress x =
   in
   {day = day; month = month; year = year; prec = prec}
 
-let date_of_cdate =
-  function
-    Cgregorian i -> Dgreg (uncompress i, Dgregorian)
+let date_of_cdate = function
+  | Cgregorian i -> Dgreg (uncompress i, Dgregorian)
   | Cjulian i -> Dgreg (uncompress i, Djulian)
   | Cfrench i -> Dgreg (uncompress i, Dfrench)
   | Chebrew i -> Dgreg (uncompress i, Dhebrew)
   | Cdate d -> d
   | Ctext t -> Dtext t
-  | Cnone -> failwith "date_of_cdate"
+  | Cnone -> failwith @@ Printf.sprintf "Failure \"date_of_cdate\" (%s\")" __LOC__
 
 let cdate_of_od =
   function

@@ -3,7 +3,8 @@ open Def
 
 module J = Yojson.Basic.Util
 
-let get_string js name =
+let get_string ~__LOC__ js name =
+  (* print_endline __LOC__ ; *)
   match J.member name js with
   | `String s -> s
   | _ -> ""
@@ -223,11 +224,11 @@ let json_of_pevent pevent =
 (* FIXME: witnesses *)
 
 let pevent_of_json json =
-  { epers_place = get_string json "place"
-  ; epers_reason = get_string json "reason"
-  ; epers_note = get_string json "note"
-  ; epers_src = get_string json "src"
-  ; epers_name = pevent_name_of_string (get_string json "name")
+  { epers_place = get_string ~__LOC__ json "place"
+  ; epers_reason = get_string ~__LOC__ json "reason"
+  ; epers_note = get_string ~__LOC__ json "note"
+  ; epers_src = get_string ~__LOC__ json "src"
+  ; epers_name = pevent_name_of_string (get_string ~__LOC__ json "name")
   ; epers_date = cdate_of_json (J.member "date" json)
   ; epers_witnesses = [||] (* Array.of_list (get_list json "witnesses" pevent_witness_of_json) *)
   }
@@ -254,8 +255,8 @@ let json_of_title gen_title =
 
 let title_of_json json =
   { t_name = title_name_of_json (J.member "name" json)
-  ; t_ident = get_string json "ident"
-  ; t_place = get_string json "place"
+  ; t_ident = get_string ~__LOC__ json "ident"
+  ; t_place = get_string ~__LOC__ json "place"
   ; t_date_start = cdate_of_json (J.member "date_start" json)
   ; t_date_end = cdate_of_json (J.member "date_end" json)
   ; t_nth = get_int ~__LOC__ json "nth" }
@@ -327,7 +328,7 @@ let json_of_fevent_witness (person , witness_kind) =
          ]
 
 let fevent_witness_of_json json =
-  ( get_string json "person"
+  ( get_string ~__LOC__ json "person"
   , fevent_witness_kind_of_json (J.member "type" json) )
 
 let json_of_fevent fevent =
@@ -341,10 +342,10 @@ let json_of_fevent fevent =
          ]
 
 let fevent_of_json json =
-  { efam_place = get_string json "place"
-  ; efam_reason = get_string json "reason"
-  ; efam_note = get_string json "note"
-  ; efam_src = get_string json "src"
+  { efam_place = get_string ~__LOC__ json "place"
+  ; efam_reason = get_string ~__LOC__ json "reason"
+  ; efam_note = get_string ~__LOC__ json "note"
+  ; efam_src = get_string ~__LOC__ json "src"
   ; efam_name = fevent_name_of_string (J.member "name" json)
   ; efam_date = cdate_of_json (J.member "date" json)
   ; efam_witnesses = Array.of_list (get_list "witnesses" fevent_witness_of_json json)
@@ -386,5 +387,5 @@ let rparent_of_json json =
   { r_type = relation_type_of_json (J.member "type" json)
   ; r_fath = (match (J.member "father" json) with `String i -> Some i | _ -> None)
   ; r_moth = (match (J.member "mother" json) with `String i -> Some i | _ -> None)
-  ; r_sources = get_string json "source"
+  ; r_sources = get_string ~__LOC__ json "source"
   }
