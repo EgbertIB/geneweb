@@ -1506,7 +1506,10 @@ and print_var print_ast_list conf ifun env ep loc sl =
       | VVother f -> print_var1 f []
     with Not_found ->
       match sl with
-        ["include"; templ] ->
+      | ["console_log"; string] ->
+        print_endline @@ Printf.sprintf "%s: %s" __LOC__ string ;
+      | ["include"; templ] ->
+        print_endline @@ Printf.sprintf "%s: %s" __LOC__ templ ;
           begin match input_templ conf templ with
             Some astl -> print_ast_list env ep astl
           | None -> Wserver.printf " %%%s?" (String.concat "." sl)
