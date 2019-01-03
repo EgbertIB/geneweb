@@ -1247,11 +1247,15 @@ let excluded_possible_duplications conf =
   gen_excluded_possible_duplications conf "fexcl" ifam_of_string
 
 let first_possible_duplication base ip (iexcl, fexcl) =
+  print_endline __LOC__ ;
+  print_endline (string_of_iper ip) ;
   let ifaml = Array.to_list (get_family (poi base ip)) in
+  print_endline __LOC__ ;
   let cand_spouse =
     let rec loop_spouse =
       function
         ifam1 :: ifaml1 ->
+        print_endline __LOC__ ;
           let isp1 = Gutil.spouse ip (foi base ifam1) in
           let sp1 = poi base isp1 in
           let fn1 = get_first_name sp1 in
@@ -1262,7 +1266,7 @@ let first_possible_duplication base ip (iexcl, fexcl) =
                 let isp2 = Gutil.spouse ip (foi base ifam2) in
                 if isp2 = isp1 then
                   if not (List.mem (ifam1, ifam2) fexcl) then
-                    DupFam (ifam1, ifam2)
+                    let () = print_endline __LOC__ in DupFam (ifam1, ifam2)
                   else loop_same ifaml2
                 else
                   let sp2 = poi base isp2 in
@@ -1271,15 +1275,16 @@ let first_possible_duplication base ip (iexcl, fexcl) =
                     eq_istr (get_first_name sp2) fn1 &&
                     eq_istr (get_surname sp2) sn1
                   then
-                    DupInd (isp1, isp2)
+                    let () = print_endline __LOC__ in DupInd (isp1, isp2)
                   else loop_same ifaml2
             | [] -> loop_spouse ifaml1
           in
           loop_same ifaml1
-      | [] -> NoDup
+      | [] ->  print_endline __LOC__ ; NoDup
     in
     loop_spouse ifaml
   in
+  print_endline __LOC__ ; 
   if cand_spouse <> NoDup then cand_spouse
   else
     let ipl =
@@ -1302,18 +1307,21 @@ let first_possible_duplication base ip (iexcl, fexcl) =
               ip2 :: ipl2 ->
                 let p2 = poi base ip2 in
                 if List.mem (ip1, ip2) iexcl then loop_same ipl2
-                else if eq_istr (get_first_name p2) fn1 then DupInd (ip1, ip2)
+                else if eq_istr (get_first_name p2) fn1 then let () = print_endline __LOC__ in DupInd (ip1, ip2)
                 else loop_same ipl2
             | [] -> loop_chil ipl1
           in
           loop_same ipl1
-      | [] -> NoDup
+      | [] -> print_endline __LOC__ ; NoDup
     in
     loop_chil ipl
 
 let has_possible_duplications conf base p =
+  print_endline __LOC__ ;
   let ip = get_key_index p in
+  print_endline __LOC__ ;
   let excl = excluded_possible_duplications conf in
+  print_endline __LOC__ ;
   first_possible_duplication base ip excl <> NoDup
 
 let merge_date_place conf base surn ((d1, d2, pl), auth) p =

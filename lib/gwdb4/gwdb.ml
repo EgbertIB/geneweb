@@ -15,7 +15,7 @@ let iper_of_string x = x
 let ifam_of_string x = x
 let istr_of_string x = x
 
-type person = Yojson.Basic.json
+type person = (iper * Yojson.Basic.json)
 type family = Yojson.Basic.json
 
 type relation = (iper, istr) gen_relation
@@ -72,23 +72,23 @@ let dummy_istr : istr = ""
 let eq_istr = (=)
 let is_empty_string = (=) ""
 let is_quest_string = (=) "?"
-let empty_person _ _ = `Null
+let empty_person _ _ = ("", `Null)
 let empty_family _ _ = `Null
 
-let get_access p =
+let get_access (_key, p) =
   match J.member "access" p with
   | `Int 2 -> Private
   | `Int 1 -> Public
   | `Int 0 -> IfTitles
   | _ -> failwith __LOC__
 
-let get_aliases p =
+let get_aliases (_key, p) =
   match J.member "aliases" p with
   | `List l -> List.map J.to_string l
   | `Null -> []
   | _ -> failwith __LOC__
 
-let get_pevents p =
+let get_pevents (_key, p) =
   get_list "pevents" pevent_of_json p
 
 let get_event_aux names fn =
@@ -127,61 +127,61 @@ let get_death, get_death_place, get_death_note, get_death_src =
            then Death (Unspecified, e.epers_date)
            else DeadDontKnowWhen
 
-let get_first_name p =
+let get_first_name (_key, p) =
   match J.member "firstname" p with
   | `String s -> s
   | _ -> ""
 
-let get_first_names_aliases p =
+let get_first_names_aliases (_key, p) =
   get_list "first_names_aliases" J.to_string p
 
-let get_image p =
+let get_image (_key, p) =
   get_string ~__LOC__ p "image"
 
-let get_key_index : person -> iper = fun p ->
-  get_string ~__LOC__ p "index"
+let get_key_index : person -> iper = fun (key, _p) -> key
+  (* get_string ~__LOC__ p "index" *)
 
-let get_notes p =
+let get_notes (_key, p) =
   get_string ~__LOC__ p "note"
 
-let get_occ p =
+let get_occ (_key, p) =
   get_int ~__LOC__ p "occ"
 
-let get_occupation p =
+let get_occupation (_key, p) =
   get_string ~__LOC__ p "occupation"
 
-let get_psources p =
+let get_psources (_key, p) =
   get_string ~__LOC__ p "psources"
 
-let get_public_name p =
+let get_public_name (_key, p) =
   get_string ~__LOC__ p "public_name"
 
-let get_qualifiers p =
+let get_qualifiers (_key, p) =
   get_list "qualifiers" J.to_string p
 
-let get_related p =
+let get_related (_key, p) =
   get_list "related" (* J.to_string *) J.to_int p
   |> List.map iper_of_int
 
-let get_rparents p =
+let get_rparents (_key, p) =
   get_list "rparents" rparent_of_json p
 
-let get_parents p =
+let get_parents (_key, p) =
   match J.member "parents" p with
   | `String i -> Some i
   | _ -> None (* FIXME *)
 
-let get_sex p = match get_int ~__LOC__ p "sex" with
+let get_sex (_key, p) = match get_int ~__LOC__ p "sex" with
   | 1 -> Def.Male
   | 2 -> Def.Female
   | _ -> Def.Neuter
 
-let get_surname p =
+let get_surname (_key, p) =
   match J.member "lastname" p with
   | `String s -> s
   | _ -> ""
 
-let get_surnames_aliases p =
+let get_surnames_aliases (_key, p) =
   get_list "surnames_aliases" J.to_string p
 
 let get_titles : person -> title list = fun _p -> []
@@ -228,8 +228,12 @@ let poi (_, get) iper =
       match Yojson.Basic.from_string @@
         get ~__LOC__ @@ "persons/" ^ (String.split_on_char ':' iper |> String.concat "%3A")
       with
-      | `List (hd :: _) -> (* print_endline __LOC__ ;  *)J.member "person" hd
-      | x -> (* print_endline __LOC__ ;  *)J.member "person" x
+      | `List (hd :: _) -> (* print_endline __LOC__ ;  *)
+        ( J.to_string (J.member "_key" hd)
+        , J.member "person" hd )
+      | x -> (* print_endline __LOC__ ;  *)
+        ( J.to_string (J.member "_key" x)
+        , J.member "person" x )
     in
     (* print_endline (Yojson.Basic.to_string x) ; *)
     Hashtbl.add poi_cache iper x ;
@@ -257,42 +261,43 @@ let json_of_burial _ = failwith __LOC__
 
 let person_of_gen_person _base (p, _a, _u) =
   let open Def in
-  `Assoc [ ("first_name", `String p.first_name)
-         ; ("lastname", `String p.surname)
-         ; ("occ", `Int p.occ)
-         ; ("image", `String p.image)
-         ; ("public_name", `String p.public_name)
-         ; ("qualifiers", `List (List.map (fun x -> `String x) p.qualifiers) )
-         ; ("aliases", `List (List.map (fun x -> `String x) p.aliases) )
-         ; ("first_names_aliases", `List (List.map (fun x -> `String x) p.first_names_aliases) )
-         ; ("surnames_aliases", `List (List.map (fun x -> `String x) p.surnames_aliases) )
-         ; ("titles", `List (List.map json_of_title p.titles))
-         ; ("rparents", `List (List.map json_of_rparent p.rparents))
-         ; ("related", `List (List.map (fun x -> `String x) p.related))
-         ; ("occupation", `String p.occupation)
-         ; ("sex", match p.sex with Male -> `Int 0 | Female -> `Int 1 | Neuter -> `Int 2)
-         ; ("access", match p.access with Private -> `Int 2 | Public  -> `Int 1 | IfTitles -> `Int 0)
-         ; ("birth", json_of_cdate p.birth)
-         ; ("birth_place", `String p.birth_place)
-         ; ("birth_note", `String p.birth_note)
-         ; ("birth_src", `String p.birth_src)
-         ; ("baptism", json_of_cdate p.baptism)
-         ; ("baptism_place", `String p.baptism_place)
-         ; ("baptism_note", `String p.baptism_note)
-         ; ("baptism_src", `String p.baptism_src)
-         ; ("death", json_of_death p.death)
-         ; ("death_place", `String p.death_place)
-         ; ("death_note", `String p.death_note)
-         ; ("death_src", `String p.death_src)
-         ; ("burial", json_of_burial p.burial)
-         ; ("burial_place", `String p.burial_place)
-         ; ("burial_note", `String p.burial_note)
-         ; ("burial_src", `String p.burial_src)
-         ; ("pevents", `List (List.map json_of_pevent p.pevents))
-         ; ("notes", `String p.notes)
-         ; ("psources", `String p.psources)
-         ; ("key_index", `String p.key_index)
-         ]
+  ( p.key_index
+  , `Assoc [ ("first_name", `String p.first_name)
+           ; ("lastname", `String p.surname)
+           ; ("occ", `Int p.occ)
+           ; ("image", `String p.image)
+           ; ("public_name", `String p.public_name)
+           ; ("qualifiers", `List (List.map (fun x -> `String x) p.qualifiers) )
+           ; ("aliases", `List (List.map (fun x -> `String x) p.aliases) )
+           ; ("first_names_aliases", `List (List.map (fun x -> `String x) p.first_names_aliases) )
+           ; ("surnames_aliases", `List (List.map (fun x -> `String x) p.surnames_aliases) )
+           ; ("titles", `List (List.map json_of_title p.titles))
+           ; ("rparents", `List (List.map json_of_rparent p.rparents))
+           ; ("related", `List (List.map (fun x -> `String x) p.related))
+           ; ("occupation", `String p.occupation)
+           ; ("sex", match p.sex with Male -> `Int 0 | Female -> `Int 1 | Neuter -> `Int 2)
+           ; ("access", match p.access with Private -> `Int 2 | Public  -> `Int 1 | IfTitles -> `Int 0)
+           ; ("birth", json_of_cdate p.birth)
+           ; ("birth_place", `String p.birth_place)
+           ; ("birth_note", `String p.birth_note)
+           ; ("birth_src", `String p.birth_src)
+           ; ("baptism", json_of_cdate p.baptism)
+           ; ("baptism_place", `String p.baptism_place)
+           ; ("baptism_note", `String p.baptism_note)
+           ; ("baptism_src", `String p.baptism_src)
+           ; ("death", json_of_death p.death)
+           ; ("death_place", `String p.death_place)
+           ; ("death_note", `String p.death_note)
+           ; ("death_src", `String p.death_src)
+           ; ("burial", json_of_burial p.burial)
+           ; ("burial_place", `String p.burial_place)
+           ; ("burial_note", `String p.burial_note)
+           ; ("burial_src", `String p.burial_src)
+           ; ("pevents", `List (List.map json_of_pevent p.pevents))
+           ; ("notes", `String p.notes)
+           ; ("psources", `String p.psources)
+           ]
+  )
 
 let gen_person_of_person : person -> (iper, iper, istr) Def.gen_person =
   fun p ->
@@ -373,7 +378,7 @@ let base_strings_of_surname _base _istr = [] (* FIXME *)
 
 let base_strings_of_first_name _base _istr = [] (* FIXME *)
 
-let nobtit _base _ _ p =
+let nobtit _base _ _ (_key, p) =
   get_list "titles" title_of_json p
 
 let person_misc_names _f = failwith __LOC__
@@ -431,9 +436,7 @@ let person_of_key : base -> string -> string -> int -> iper option =
     |> Yojson.Basic.from_string
   with
   | `List [] -> None
-  | `List (x :: _) ->
-    let x = J.member "person" x in
-    Some (get_key_index x)
+  | `List (x :: _) -> Some (J.to_string @@ J.member "_key" x)
   | x -> failwith @@ Printf.sprintf "%s: %s" __LOC__ (Yojson.Basic.to_string x)
 
 let get_children f =
@@ -489,7 +492,7 @@ let get_divorce f =
 let get_comment f =
   get_string ~__LOC__ f "comment"
 
-let get_family p =
+let get_family (_key, p) =
   match J.member "families" p with
   | `List list -> Array.map J.to_string (Array.of_list list)
   | _ -> [||]
