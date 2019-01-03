@@ -1808,6 +1808,7 @@ let make_cnt_dir x =
   Util.cnt_dir := x
 
 let main ~speclist () =
+  Printexc.record_backtrace true ;
   if Sys.unix then ()
   else begin Wserver.sock_in := "gwd.sin"; Wserver.sock_out := "gwd.sou" end;
   let usage =
