@@ -25,7 +25,8 @@
 <a href="#content" class="sr-only sr-only-focusable">Skip navigation menu</a>
 <div class="container%if;(evar.wide="on")-fluid%end;">
 %import;perso_utils;
-%include.menubar;
+%( %include.menubar; %)
+%console_log.foo;
 <div id="content" tabindex="-1">
 %define;init_nb_asc(tplnum)
   %let;templ;%bvar.perso_module_tplnum;%in
@@ -91,9 +92,13 @@
  <div class="row">
     %(be carefull h1 is col-12 for full width then an opening <div class="col-8"> is inside personnal_data %)
       %let;op_m;3%in;%apply;show_templ("modules/individu")
+
       %let;op_m;2%in;%apply;show_templ("modules/unions")
+
       %let;op_m;1%in;%apply;show_templ("modules/chronologie")
-      %let;op_m;1%in;%apply;show_templ("modules/notes")
+
+      %( %let;op_m;1%in;%apply;show_templ("modules/notes") %)
+
       %let;op_m;2%in;%apply;show_templ("modules/sources")
     %if;(p_mod="" or p_mod="zz")</div>%end; %( end of <div class="col-8"> from personnal_data %)
     <div class="col-4">

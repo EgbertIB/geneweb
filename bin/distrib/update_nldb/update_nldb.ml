@@ -121,8 +121,7 @@ let compute base bdir =
   flush stderr;
   ProgrBar.full := '*';
   ProgrBar.start ();
-  Gwdb.Collection.iteri (fun i ip ->
-    let p = poi base ip in
+  Gwdb.Collection.iteri (fun i p ->
     let s =
       let sl =
         [get_notes p; get_occupation p; get_birth_note p; get_birth_src p;
@@ -142,11 +141,11 @@ let compute base bdir =
     let list = notes_links s in
     if list = ([], []) then ()
     else
-      begin let pg = NotesLinks.PgInd ip in
+      begin let pg = NotesLinks.PgInd (get_key_index p) in
         db := NotesLinks.add_in_db !db pg list
       end;
     ProgrBar.run i nb_ind
-    ) (Gwdb.ipers base) ;
+    ) (Gwdb.persons base) ;
   ProgrBar.finish ();
   Printf.eprintf "--- families notes\n";
   flush stderr;
@@ -154,29 +153,27 @@ let compute base bdir =
   ProgrBar.start ();
   Gwdb.Collection.iteri (fun i ifam ->
     let fam = foi base ifam in
-    if not (is_deleted_family fam) then
-      begin let s =
-        let sl =
-          [get_comment fam; get_fsources fam; get_marriage_note fam;
-           get_marriage_src fam]
-        in
-        let sl =
-          let rec loop l accu =
-            match l with
-              [] -> accu
-            | evt :: l -> loop l (evt.efam_note :: evt.efam_src :: accu)
-          in
-          loop (get_fevents fam) sl
-        in
-        String.concat " " (List.map (sou base) sl)
+    let s =
+      let sl =
+        [get_comment fam; get_fsources fam; get_marriage_note fam;
+         get_marriage_src fam]
       in
-        let list = notes_links s in
-        if list = ([], []) then ()
-        else
-          let pg = NotesLinks.PgFam ifam in
-          db := NotesLinks.add_in_db !db pg list
-      end;
-    ProgrBar.run i nb_fam
+      let sl =
+        let rec loop l accu =
+          match l with
+            [] -> accu
+          | evt :: l -> loop l (evt.efam_note :: evt.efam_src :: accu)
+        in
+        loop (get_fevents fam) sl
+      in
+      String.concat " " (List.map (sou base) sl)
+    in
+    let list = notes_links s in
+    if list = ([], []) then ()
+    else
+      let pg = NotesLinks.PgFam ifam in
+      db := NotesLinks.add_in_db !db pg list ;
+      ProgrBar.run i nb_fam
     ) (Gwdb.ifams base) ;
   ProgrBar.finish ();
   NotesLinks.write_db bdir !db

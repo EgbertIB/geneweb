@@ -29,38 +29,32 @@ let iper_of_int i =
   Printf.sprintf "pierfit:%d" i
 
 let open_base name =
+  Curl.global_init Curl.CURLINIT_GLOBALALL;
+  let result = Buffer.create 16384 in
+  let write data =
+    Buffer.add_string result data ;
+    String.length data
+  in
+  (* print_endline __LOC__ ; *)
   ( name
-  , fun ~__LOC__ request ->
-    print_endline __LOC__ ;
-    let url = Printf.sprintf "http://localhost:8529/_db/Trees/geneweb/%s/%s" name request in
-    print_endline url ;
-    Curl.global_init Curl.CURLINIT_GLOBALALL;
-    let res = ref "" in
-    let result = Buffer.create 16384
-    and errorBuffer = ref "" in
-    begin try
-        let connection = Curl.init () in
-        let headers = [] in
-        Curl.set_httpheader connection headers;
-        Curl.set_errorbuffer connection errorBuffer;
-        Curl.set_writefunction connection
-          (fun data ->
-             Buffer.add_string result data;
-             String.length data);
-        Curl.set_followlocation connection true;
-        Curl.set_url connection url;
-        Curl.set_timeoutms connection 10000;
-        Curl.perform connection;
-        Curl.cleanup connection;
-        res := Buffer.contents result
-      with
-      | Curl.CurlException _ ->
-        Printf.fprintf stderr "Error: %s\n" !errorBuffer
-      | Failure s ->
-        Printf.fprintf stderr "Caught exception: %s\n" s
-    end ;
-    Curl.global_cleanup () ;
-    !res
+  , fun ~__LOC__:_ request ->
+    (* try *)
+      (* print_endline __LOC__ ; *)
+      let url = Printf.sprintf "http://localhost:8529/_db/Trees/geneweb/%s/%s" name request in
+      print_endline @@ Printf.sprintf "%s: %s" __LOC__ url ;
+      Buffer.reset result ;
+      let connection = Curl.init () in
+      Curl.set_httpheader connection [];
+      Curl.set_writefunction connection write ;
+      Curl.set_followlocation connection true ;
+      Curl.set_timeoutms connection 10000;
+      Curl.set_url connection url ;
+      Curl.perform connection ;
+      Curl.cleanup connection ;
+      Buffer.contents result
+    (* with
+     * | Curl.CurlException (_curlCode, i, s) as e ->
+     *   failwith @@ (Printf.sprintf "%s %d %s %s" __LOC__ i s (Printexc.to_string e)) *)
   )
 
 let close_base _base = ()
@@ -256,9 +250,6 @@ let family_of_gen_family _base (f, _c, _d)
          ; ("fam_index", `String f.fam_index)
          ]
 
-let json_of_death _ = failwith __LOC__
-let json_of_burial _ = failwith __LOC__
-
 let person_of_gen_person _base (p, _a, _u) =
   let open Def in
   ( p.key_index
@@ -277,22 +268,6 @@ let person_of_gen_person _base (p, _a, _u) =
            ; ("occupation", `String p.occupation)
            ; ("sex", match p.sex with Male -> `Int 0 | Female -> `Int 1 | Neuter -> `Int 2)
            ; ("access", match p.access with Private -> `Int 2 | Public  -> `Int 1 | IfTitles -> `Int 0)
-           ; ("birth", json_of_cdate p.birth)
-           ; ("birth_place", `String p.birth_place)
-           ; ("birth_note", `String p.birth_note)
-           ; ("birth_src", `String p.birth_src)
-           ; ("baptism", json_of_cdate p.baptism)
-           ; ("baptism_place", `String p.baptism_place)
-           ; ("baptism_note", `String p.baptism_note)
-           ; ("baptism_src", `String p.baptism_src)
-           ; ("death", json_of_death p.death)
-           ; ("death_place", `String p.death_place)
-           ; ("death_note", `String p.death_note)
-           ; ("death_src", `String p.death_src)
-           ; ("burial", json_of_burial p.burial)
-           ; ("burial_place", `String p.burial_place)
-           ; ("burial_note", `String p.burial_note)
-           ; ("burial_src", `String p.burial_src)
            ; ("pevents", `List (List.map json_of_pevent p.pevents))
            ; ("notes", `String p.notes)
            ; ("psources", `String p.psources)
@@ -384,35 +359,35 @@ let nobtit _base _ _ (_key, p) =
 let person_misc_names _f = failwith __LOC__
 let gen_person_misc_names _f = failwith __LOC__
 
-let base_wiznotes_dir _f = failwith __LOC__
-let base_notes_dir _f = failwith __LOC__
-let base_notes_origin_file _f = failwith __LOC__
-let base_notes_are_empty _base _istr = true (* FIXME *)
-let base_notes_read_first_line _f = failwith __LOC__
-let base_notes_read _f = failwith __LOC__
-let ascends_array _f = failwith __LOC__
-let persons_array _base = failwith __LOC__
-let base_particles _f = failwith __LOC__
-let base_visible_write _f = failwith __LOC__
-let base_visible_get _f = failwith __LOC__
+let base_wiznotes_dir _f = (* failwith __LOC__ *) let () = print_endline __LOC__ in "notes_d"
+let base_notes_dir _f = (* failwith __LOC__ *) let () = print_endline __LOC__ in "wiznotes"
+let base_notes_origin_file _f = (* failwith __LOC__ *) let () = print_endline __LOC__ in ""
+let base_notes_are_empty _base _istr = let () = print_endline __LOC__ in true (* FIXME *)
+let base_notes_read_first_line _f _s = (* failwith __LOC__ *) let () = print_endline __LOC__ in ""
+let base_notes_read _f _s = (* failwith __LOC__ *) let () = print_endline __LOC__ in ""
+let ascends_array _f = let () = print_endline __LOC__ in failwith __LOC__
+let persons_array _base = let () = print_endline __LOC__ in failwith __LOC__
+let base_particles _f = (* failwith __LOC__ *) let () = print_endline __LOC__ in []
+let base_visible_write _ = (* failwith __LOC__ *) let () = print_endline __LOC__ in ()
+let base_visible_get _ _ _ = (* failwith __LOC__ *) let () = print_endline __LOC__ in true
 
-let delete_family _f = failwith __LOC__
-let insert_family _f = failwith __LOC__
-let insert_person _f = failwith __LOC__
-let patched_ascends _f = failwith __LOC__
-let is_patched_person _f = failwith __LOC__
-let commit_notes _f = failwith __LOC__
-let commit_patches _f = failwith __LOC__
+let delete_family _f = let () = print_endline __LOC__ in failwith __LOC__
+let insert_family _f = let () = print_endline __LOC__ in failwith __LOC__
+let insert_person _f = let () = print_endline __LOC__ in failwith __LOC__
+let patched_ascends _f = let () = print_endline __LOC__ in failwith __LOC__
+let is_patched_person _f = let () = print_endline __LOC__ in failwith __LOC__
+let commit_notes _f = let () = print_endline __LOC__ in failwith __LOC__
+let commit_patches _f = let () = print_endline __LOC__ in failwith __LOC__
 let insert_string _base s = s
-let delete_key _f = failwith __LOC__
-let patch_key _f = failwith __LOC__
-let patch_name _f = failwith __LOC__
-let patch_couple _f = failwith __LOC__
-let patch_descend _f = failwith __LOC__
-let patch_family _f = failwith __LOC__
-let patch_union _f = failwith __LOC__
-let patch_ascend _f = failwith __LOC__
-let patch_person _f = failwith __LOC__
+let delete_key _f = let () = print_endline __LOC__ in failwith __LOC__
+let patch_key _f = let () = print_endline __LOC__ in failwith __LOC__
+let patch_name _f = let () = print_endline __LOC__ in failwith __LOC__
+let patch_couple _f = let () = print_endline __LOC__ in failwith __LOC__
+let patch_descend _f = let () = print_endline __LOC__ in failwith __LOC__
+let patch_family _f = let () = print_endline __LOC__ in failwith __LOC__
+let patch_union _f = let () = print_endline __LOC__ in failwith __LOC__
+let patch_ascend _f = let () = print_endline __LOC__ in failwith __LOC__
+let patch_person _f = let () = print_endline __LOC__ in failwith __LOC__
 
 let nb_of_families : base -> int = fun (_, get) ->
   get ~__LOC__ "nb_families"
@@ -444,18 +419,22 @@ let get_children f =
   |> List.map iper_of_int
   |> Array.of_list
 
-let get_parent_array _f = failwith __LOC__
+let get_parent_array f =
+  match J.member "parent_array" f with
+  | `List [ `Int father ; `Int mother ] -> [| iper_of_int father ; iper_of_int mother |] (* FIXME: To be removed *)
+  | `List [ `String father ; `String mother ] -> [| father ; mother |] (* FIXME: To be removed *)
+  | x -> failwith @@ Printf.sprintf "%s: %s" __LOC__ (Yojson.Basic.to_string x)
 
 let get_mother f =
   match J.member "parents" f with
   | `List [ _ ; `String mother ] -> mother
-  | `List [ _ ; `Int mother ] -> Printf.sprintf "pierfit:%d" mother (* FIXME: To be removed *)
+  | `List [ _ ; `Int mother ] -> iper_of_int mother (* FIXME: To be removed *)
   | x -> failwith @@ Printf.sprintf "%s: %s" __LOC__ (Yojson.Basic.to_string x)
 
 let get_father f =
   match J.member "parents" f with
   | `List [ `String father ; _ ] -> father
-  | `List [ `Int father ; _ ] -> Printf.sprintf "pierfit:%d" father (* FIXME: To be removed *)
+  | `List [ `Int father ; _ ] -> iper_of_int father (* FIXME: To be removed *)
   | x -> failwith @@ Printf.sprintf "%s: %s" __LOC__ (Yojson.Basic.to_string x)
 
 let get_witnesses f : iper array =
@@ -572,16 +551,18 @@ module Collection = struct
 
 end
 
-(* FIXME: get items by batch *)
-let mk_collection len get =
-  let cache = Hashtbl.create len in
+let mk_collection len init get bulk_size =
+  let current = ref (-1) in
+  let cache = Array.make len init in
   let fetch i =
-    let list = get i 1 in
-    (* List.iter *) (fun (k, v) -> Hashtbl.add cache k v) list ;
+    let offset = (i / bulk_size) * bulk_size in
+    let list = get offset bulk_size in
+    List.iteri (fun i v -> Array.set cache (i + offset) v) list ;
+    current := offset + bulk_size
   in
-  let rec get i =
-    try Hashtbl.find cache i
-    with Not_found -> fetch i ; get i
+  let get i =
+    if i < !current then Array.get cache i
+    else begin fetch i ; Array.get cache i end
   in
   Collection.{ length = len ; get }
 
@@ -602,31 +583,43 @@ end
 
 (* FIXME *)
 let ipers ((_, get) as base) : iper Collection.t =
-  mk_collection
-    (nb_of_persons base)
-    (fun i limit ->
-       Printf.sprintf "persons?scope=ids&offset=%d&limit=%d" i limit
+  mk_collection (nb_of_persons base) dummy_iper
+    (fun offset limit ->
+       Printf.sprintf "persons?scope=ids&offset=%d&limit=%d" offset limit
        |> get ~__LOC__
        |> Yojson.Basic.from_string
        |> function
-       | `List (hd :: _) -> (i, J.to_string hd)
+       | `List list -> List.map J.to_string list
        | _ -> failwith __LOC__
     )
+    100000
 
-let persons (base : base) =
-  Collection.map (poi base) (ipers base)
+let persons ((_, get) as base : base) : person Collection.t =
+  mk_collection (nb_of_persons base) ("", `Null)
+    (fun offset limit ->
+       Printf.sprintf "persons?offset=%d&limit=%d" offset limit
+       |> get ~__LOC__
+       |> Yojson.Basic.from_string
+       |> function
+       | `List list ->
+         List.map
+           (fun x -> ( J.to_string (J.member "_key" x), J.member "person" x) )
+           list
+       | _ -> failwith __LOC__
+    )
+    10000
 
 let ifams ((_, get) as base) : ifam Collection.t =
-  mk_collection
-    (nb_of_families base)
-    (fun i limit ->
-       Printf.sprintf "families?scope=ids&offset=%d&limit=%d" i limit
+  mk_collection (nb_of_families base) dummy_ifam
+    (fun offset limit ->
+       Printf.sprintf "families?scope=ids&offset=%d&limit=%d" offset limit
        |> get ~__LOC__
        |> Yojson.Basic.from_string
        |> function
-       | `List (hd :: _) -> (i, J.to_string hd)
+       | `List list -> List.map J.to_string list
        | _ -> failwith __LOC__
     )
+    100000
 
 let families base =
   Collection.map (foi base) (ifams base)

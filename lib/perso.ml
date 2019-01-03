@@ -1605,17 +1605,19 @@ let links_to_ind conf base db key =
          let record_it =
            match pg with
              NotesLinks.PgInd ip ->
-               authorized_age conf base (pget conf base ip)
+             authorized_age conf base (pget conf base ip)
            | NotesLinks.PgFam ifam ->
-               authorized_age conf base (pget conf base (get_father @@ foi base ifam))
-           | NotesLinks.PgNotes | NotesLinks.PgMisc _ |
-             NotesLinks.PgWizard _ ->
-               true
+             authorized_age conf base (pget conf base (get_father @@ foi base ifam))
+           | NotesLinks.PgNotes
+           | NotesLinks.PgMisc _
+           | NotesLinks.PgWizard _ ->
+             true
          in
          if record_it then
            List.fold_left
              (fun pgl (k, _) -> if k = key then pg :: pgl else pgl) pgl il
-         else pgl)
+         else
+           pgl)
       [] db
   in
   List.sort_uniq compare list
@@ -3184,18 +3186,22 @@ and eval_person_field_var conf base env (p, p_auth as ep) loc =
   | ["has_linked_pages"] ->
       begin match get_env "nldb" env with
         Vnldb db ->
+        print_endline __LOC__ ;
           let r =
             if p_auth then
               let key =
                 let fn = Name.lower (sou base (get_first_name p)) in
                 let sn = Name.lower (sou base (get_surname p)) in
+                print_endline @@ Printf.sprintf "%s: %s %s %d" __LOC__  fn sn (get_occ p) ;
                 fn, sn, get_occ p
               in
+              print_endline __LOC__ ;
               links_to_ind conf base db key <> []
             else false
           in
+          print_endline __LOC__ ;
           VVbool r
-      | _ -> raise Not_found
+      | _ -> print_endline __LOC__ ; raise Not_found
       end
   | ["has_sosa"] ->
       begin match get_env "p_link" env with
@@ -5956,10 +5962,16 @@ let gen_interp_templ menu title templ_fname conf base p =
       Vint (max_descendant_level base desc_level_table_m)
     in
     let nldb () =
+      let () = print_endline __LOC__ in
       let bdir = Util.base_path [] (conf.bname ^ ".gwb") in
+      let () = print_endline @@ Printf.sprintf "%s: %s" __LOC__ bdir in
       let fname = Filename.concat bdir "notes_links" in
+      let () = print_endline @@ Printf.sprintf "%s: %s" __LOC__ fname in
       let db = NotesLinks.read_db_from_file fname in
-      let db = Notes.merge_possible_aliases conf db in Vnldb db
+      let () = print_endline @@ Printf.sprintf "%s: %d" __LOC__ (List.length db) in
+      let db = Notes.merge_possible_aliases conf db in
+      let () = print_endline @@ Printf.sprintf "%s: %d" __LOC__ (List.length db) in
+      Vnldb db
     in
     let all_gp () = Vallgp (get_all_generations conf base p) in
     [("p", Vind p);
