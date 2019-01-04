@@ -1,21 +1,5 @@
 (* Copyright (c) 1998-2007 INRIA *)
 
-(* FIXME
-
-   Add functions to:
-   - iter / map / fold on collections (persons, families, ...)
-   - fold until a condition is met
-   - loop writer help (next () function)
-   - filter, filter_map
-
-   And also:
-   - add an element to a family
-
-   So we can iper/ifam type can be really abstract and so we
-   do not rely on loops from [0] to [nb_ind] to loop over
-   collections.
- *)
-
 open Adef
 
 type iper
@@ -249,14 +233,50 @@ val p_surname : base -> person -> string
 val date_of_last_change : base -> float
 
 module Collection : sig
+
+  (** Collections are sets of elements you want to traverse. *)
   type 'a t
+
+  (** Return the number of elements of a colletion *)
   val length : 'a t -> int
+
+  (** [map fn c]
+      Return a collection corresponding to [c]
+      where [fn] would have been applied to each of its elements.
+  *)
   val map : ('a -> 'b) -> 'a t -> 'b t
+
+  (** [iter fn c]
+      Apply [fn] would have been applied to each elements of [c].
+  *)
   val iter : ('a -> unit) -> 'a t -> unit
+
+  (** [iter fn c]
+      Apply [fn i] would have been applied to each elements of [c]
+      where [i] is the index (starting with 0) of the element.
+  *)
   val iteri : (int -> 'a -> unit) -> 'a t -> unit
+
+  (** [fold fn acc c]
+      Combine each element of [c] into a single value using [fn].
+      [fn] first argument is the result computed so far as we traverse the
+      collection, and second element is the current element being combined.
+      [acc] is the starting combined value.
+  *)
   val fold : ('a -> 'b -> 'a) -> 'a -> 'b t -> 'a
+
+  (** [fold continue fn acc c]
+      Same as [fold fn acc c], but computation stops as soon as [continue]
+      is not satisfied by combined value anymore.
+  *)
   val fold_until : ('a -> bool) -> ('a -> 'b -> 'a) -> 'a -> 'b t -> 'a
+
+  (** [iterator c]
+      Return a function returning [Some next_element] when it is called,
+      or [None] if you reached the end of the collection.
+  *)
   val iterator : 'a t -> (unit -> 'a option)
+
 end
 
 module Marker : sig
