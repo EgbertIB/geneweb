@@ -62,27 +62,27 @@ let compute base bdir =
   Printf.eprintf "--- wizard notes\n";
   flush stderr;
   begin try
-    let files = Sys.readdir (Filename.concat bdir (base_wiznotes_dir base)) in
-    for i = 0 to Array.length files - 1 do
-      let file = files.(i) in
-      if Filename.check_suffix file ".txt" then
-        let wizid = Filename.chop_suffix file ".txt" in
-        let wfile =
-          List.fold_left Filename.concat bdir [base_wiznotes_dir base; file]
-        in
-        let list = notes_links (read_file_contents wfile) in
-        if list = ([], []) then ()
-        else
-          begin
-            Printf.eprintf "%s... " wizid;
-            flush stderr;
-            let pg = NotesLinks.PgWizard wizid in
-            NotesLinks.update_db bdir pg list
-          end
-    done;
-    Printf.eprintf "\n";
-    flush stderr
-  with Sys_error _ -> ()
+      let files = Sys.readdir (Filename.concat bdir (base_wiznotes_dir base)) in
+      for i = 0 to Array.length files - 1 do
+        let file = files.(i) in
+        if Filename.check_suffix file ".txt" then
+          let wizid = Filename.chop_suffix file ".txt" in
+          let wfile =
+            List.fold_left Filename.concat bdir [base_wiznotes_dir base; file]
+          in
+          let list = notes_links (read_file_contents wfile) in
+          if list = ([], []) then ()
+          else
+            begin
+              Printf.eprintf "%s... " wizid;
+              flush stderr;
+              let pg = NotesLinks.PgWizard wizid in
+              NotesLinks.update_db bdir pg list
+            end
+      done;
+      Printf.eprintf "\n";
+      flush stderr
+    with Sys_error _ -> ()
   end;
   let db = ref (NotesLinks.read_db bdir) in
   Printf.eprintf "--- misc notes\n";
@@ -117,64 +117,59 @@ let compute base bdir =
     with Sys_error _ -> ()
   in
   loop Filename.current_dir_name "";
-  Printf.eprintf "--- individual notes\n";
-  flush stderr;
-  ProgrBar.full := '*';
-  ProgrBar.start ();
+  let buffer = Buffer.create 1024 in
+  let add_string istr =
+    Buffer.add_string buffer @@ sou base istr ;
+    Buffer.add_char buffer ' '
+  in
+  ProgrBar.full := '*' ;
+  Printf.eprintf "--- individual notes\n"; flush stderr ;
+  ProgrBar.start () ;
   Gwdb.Collection.iteri (fun i p ->
-    let s =
-      let sl =
-        [get_notes p; get_occupation p; get_birth_note p; get_birth_src p;
-         get_baptism_note p; get_baptism_src p; get_death_note p;
-         get_death_src p; get_burial_note p; get_burial_src p; get_psources p]
-      in
-      let sl =
-        let rec loop l accu =
-          match l with
-            [] -> accu
-          | evt :: l -> loop l (evt.epers_note :: evt.epers_src :: accu)
-        in
-        loop (get_pevents p) sl
-      in
-      String.concat " " (List.map (sou base) sl)
-    in
-    let list = notes_links s in
-    if list = ([], []) then ()
-    else
-      begin let pg = NotesLinks.PgInd (get_key_index p) in
-        db := NotesLinks.add_in_db !db pg list
-      end;
-    ProgrBar.run i nb_ind
+      ProgrBar.run i nb_ind ;
+      Buffer.reset buffer ;
+      add_string @@ get_notes p ;
+      add_string @@ get_occupation p ;
+      add_string @@ get_birth_note p ;
+      add_string @@ get_birth_src p ;
+      add_string @@ get_baptism_note p ;
+      add_string @@ get_baptism_src p ;
+      add_string @@ get_death_note p ;
+      add_string @@ get_death_src p ;
+      add_string @@ get_burial_note p ;
+      add_string @@ get_burial_src p ;
+      add_string @@ get_psources p ;
+      List.iter (fun { epers_note ; epers_src } ->
+          add_string epers_note ;
+          add_string epers_src )
+        (get_pevents p) ;
+      match notes_links (Buffer.contents buffer) with
+      | ([], []) -> ()
+      | list ->
+        db := NotesLinks.add_in_db !db (NotesLinks.PgInd (get_key_index p)) list
     ) (Gwdb.persons base) ;
-  ProgrBar.finish ();
-  Printf.eprintf "--- families notes\n";
-  flush stderr;
-  ProgrBar.full := '*';
-  ProgrBar.start ();
+  ProgrBar.finish () ;
+  Printf.eprintf "--- families notes\n"; flush stderr;
+  ProgrBar.start () ;
   Gwdb.Collection.iteri (fun i fam ->
-    let s =
-      let sl =
-        [get_comment fam; get_fsources fam; get_marriage_note fam;
-         get_marriage_src fam]
-      in
-      let sl =
-        let rec loop l accu =
-          match l with
-            [] -> accu
-          | evt :: l -> loop l (evt.efam_note :: evt.efam_src :: accu)
-        in
-        loop (get_fevents fam) sl
-      in
-      String.concat " " (List.map (sou base) sl)
-    in
-    let list = notes_links s in
-    if list = ([], []) then ()
-    else
-      let pg = NotesLinks.PgFam (get_fam_index fam) in
-      db := NotesLinks.add_in_db !db pg list ;
-      ProgrBar.run i nb_fam
+      ProgrBar.run i nb_fam ;
+      Buffer.reset buffer ;
+      add_string @@ get_comment fam ;
+      add_string @@ get_fsources fam ;
+      add_string @@ get_marriage_note fam ;
+      add_string @@ get_marriage_src fam ;
+      List.iter
+        (fun { efam_note ; efam_src ; _ } ->
+           add_string @@ efam_note ;
+           add_string @@ efam_src )
+        (get_fevents fam) ;
+      match notes_links (Buffer.contents buffer) with
+      | ([], []) -> ()
+      | list ->
+        db := NotesLinks.add_in_db !db (NotesLinks.PgFam (get_fam_index fam)) list ;
+        ProgrBar.run i nb_fam
     ) (Gwdb.families base) ;
-  ProgrBar.finish ();
+  ProgrBar.finish () ;
   NotesLinks.write_db bdir !db
 
 let main () =
