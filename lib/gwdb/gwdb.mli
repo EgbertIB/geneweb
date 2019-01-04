@@ -268,15 +268,30 @@ module Collection : sig
 end
 
 module Marker : sig
+
+  (** Markers are way to annotate (add extra information to) elements of a {!val:Collection.t}. *)
   type ('k, 'v) t
+
+  (** [get marker key]
+      Return the annotation associated to [key].
+  *)
   val get : ('k, 'v) t -> 'k -> 'v
+
+  (** [set marker key value]
+      Set [value] as annotation associated to [key].
+  *)
   val set : ('k, 'v) t -> 'k -> 'v -> unit
+
 end
+
+(** {2 Useful collections} *)
 
 val ipers : base -> iper Collection.t
 val persons : base -> person Collection.t
 val ifams : base -> ifam Collection.t
 val families : base -> family Collection.t
+
+(** {2 Useful markers} *)
 
 val person_marker : person Collection.t -> 'a -> (person, 'a) Marker.t
 val iper_marker : iper Collection.t -> 'a -> (iper, 'a) Marker.t
