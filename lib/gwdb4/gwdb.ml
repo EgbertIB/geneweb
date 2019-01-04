@@ -16,7 +16,7 @@ let ifam_of_string x = x
 let istr_of_string x = x
 
 type person = (iper * Yojson.Basic.json)
-type family = Yojson.Basic.json
+type family = (ifam * Yojson.Basic.json)
 
 type relation = (iper, istr) gen_relation
 type title = istr gen_title
@@ -31,8 +31,11 @@ let iper_of_int i =
 let open_base name =
   Curl.global_init Curl.CURLINIT_GLOBALALL;
   let result = Buffer.create 16384 in
+  let error = ref "" in
   let write data =
+    print_endline __LOC__ ;
     Buffer.add_string result data ;
+    print_endline @@ Printf.sprintf "%s: %d / %d" __LOC__ (String.length data) (Buffer.length result) ;
     String.length data
   in
   (* print_endline __LOC__ ; *)
@@ -46,6 +49,7 @@ let open_base name =
       let connection = Curl.init () in
       Curl.set_httpheader connection [];
       Curl.set_writefunction connection write ;
+      Curl.set_errorbuffer connection error ;
       Curl.set_followlocation connection true ;
       Curl.set_timeoutms connection 10000;
       Curl.set_url connection url ;
@@ -66,8 +70,8 @@ let dummy_istr : istr = ""
 let eq_istr = (=)
 let is_empty_string = (=) ""
 let is_quest_string = (=) "?"
-let empty_person _ _ = ("", `Null)
-let empty_family _ _ = `Null
+let empty_person _ _ = (dummy_iper, `Null)
+let empty_family _ _ = (dummy_ifam, `Null)
 
 let get_access (_key, p) =
   match J.member "access" p with
@@ -206,7 +210,7 @@ let foi (_, get) ifam =
     let x =
       get ~__LOC__ @@ "families/" ^ (String.split_on_char ':' ifam |> String.concat "%3A")
       |> Yojson.Basic.from_string
-      |> J.member "family"
+      |> fun x -> ( J.to_string (J.member "_key" x), J.member "family" x)
     in
     Hashtbl.add foi_cache ifam x ;
     x
@@ -236,19 +240,20 @@ let poi (_, get) iper =
 let family_of_gen_family _base (f, _c, _d)
   =
   let open Def in
-  `Assoc [ ("marriage", json_of_cdate f.marriage)
-         ; ("marriage_place", `String f.marriage_place)
-         ; ("marriage_note", `String f.marriage_note)
-         ; ("marriage_src", `String f.marriage_src)
-         ; ("witnesses", `List (Array.to_list @@ Array.map (fun x -> `String x) f.witnesses) )
-         ; ("relation", json_of_relation_kind f.relation)
-         ; ("divorce", json_of_divorce f.divorce)
-         ; ("fevents", `List (List.map json_of_fevent f.fevents))
-         ; ("comment", `String f.comment)
-         ; ("origin_file", `String f.origin_file)
-         ; ("fsources", `String f.fsources)
-         ; ("fam_index", `String f.fam_index)
-         ]
+  ( f.fam_index
+  , `Assoc [ ("marriage", json_of_cdate f.marriage)
+           ; ("marriage_place", `String f.marriage_place)
+           ; ("marriage_note", `String f.marriage_note)
+           ; ("marriage_src", `String f.marriage_src)
+           ; ("witnesses", `List (Array.to_list @@ Array.map (fun x -> `String x) f.witnesses) )
+           ; ("relation", json_of_relation_kind f.relation)
+           ; ("divorce", json_of_divorce f.divorce)
+           ; ("fevents", `List (List.map json_of_fevent f.fevents))
+           ; ("comment", `String f.comment)
+           ; ("origin_file", `String f.origin_file)
+           ; ("fsources", `String f.fsources)
+           ]
+  )
 
 let person_of_gen_person _base (p, _a, _u) =
   let open Def in
@@ -459,61 +464,61 @@ let person_of_key : base -> string -> string -> int -> iper option =
   | `List (x :: _) -> Some (J.to_string @@ J.member "_key" x)
   | x -> failwith @@ Printf.sprintf "%s: %s" __LOC__ (Yojson.Basic.to_string x)
 
-let get_children f =
+let get_children (_, f) =
   get_list "children" J.to_int (* J.to_string *) f
   |> List.map iper_of_int
   |> Array.of_list
 
-let get_parent_array f =
+let get_parent_array (_, f) =
   match J.member "parent_array" f with
   | `List [ `Int father ; `Int mother ] -> [| iper_of_int father ; iper_of_int mother |] (* FIXME: To be removed *)
   | `List [ `String father ; `String mother ] -> [| father ; mother |] (* FIXME: To be removed *)
   | x -> failwith @@ Printf.sprintf "%s: %s" __LOC__ (Yojson.Basic.to_string x)
 
-let get_mother f =
+let get_mother (_, f) =
   match J.member "parents" f with
   | `List [ _ ; `String mother ] -> mother
   | `List [ _ ; `Int mother ] -> iper_of_int mother (* FIXME: To be removed *)
   | x -> failwith @@ Printf.sprintf "%s: %s" __LOC__ (Yojson.Basic.to_string x)
 
-let get_father f =
+let get_father (_, f) =
   match J.member "parents" f with
   | `List [ `String father ; _ ] -> father
   | `List [ `Int father ; _ ] -> iper_of_int father (* FIXME: To be removed *)
   | x -> failwith @@ Printf.sprintf "%s: %s" __LOC__ (Yojson.Basic.to_string x)
 
-let get_witnesses f : iper array =
+let get_witnesses (_, f) : iper array =
   Array.of_list (get_list "witnesses" J.to_string f)
 
-let get_relation f =
+let get_relation (_, f) =
   J.member "relation_kind" f
   |> relation_kind_of_json
 
-let get_origin_file f =
+let get_origin_file (_, f) =
   get_string ~__LOC__ f "origin_file"
 
-let get_marriage_src f =
+let get_marriage_src (_, f) =
   get_string ~__LOC__ f "marriage_src"
 
-let get_marriage_note f =
+let get_marriage_note (_, f) =
   get_string ~__LOC__ f "marriage_note"
 
-let get_marriage_place f =
+let get_marriage_place (_, f) =
   get_string ~__LOC__ f "marriage_place"
 
-let get_marriage f =
+let get_marriage (_, f) =
   cdate_of_json @@ J.member "marriage" f
 
-let get_fsources f =
+let get_fsources (_, f) =
   get_string ~__LOC__ f "fsources"
 
-let get_fevents f =
+let get_fevents (_, f) =
   get_list "fevents" fevent_of_json f
 
-let get_divorce f =
+let get_divorce (_, f) =
   divorce_of_json (J.member "divorce" f)
 
-let get_comment f =
+let get_comment (_, f) =
   get_string ~__LOC__ f "comment"
 
 let get_family (_key, p) =
@@ -523,8 +528,9 @@ let get_family (_key, p) =
 
 let get_consang _f = Adef.no_consang (* FIXME *)
 
-let get_fam_index f =
-  get_string ~__LOC__ f "fam_index"
+(* FIXME: removed fam_index from json *)
+let get_fam_index (ifam, _) =
+  ifam
 
 let gen_family_of_family : family -> (iper, ifam, istr) Def.gen_family =
   fun f ->
@@ -612,6 +618,25 @@ let mk_collection len init get bulk_size =
   in
   Collection.{ length = len ; get }
 
+let mk_collection' len get bulk_size =
+  let current = ref (-1) in
+  let cache = ref [] in
+  let fetch i =
+    let offset = (i / bulk_size) * bulk_size in
+    get offset bulk_size
+  in
+  let get i =
+    incr current ;
+    assert (i = !current) ;
+    match !cache with
+    | hd :: tl -> cache := tl ; hd
+    | [] ->
+      let res = fetch i in
+      cache := List.tl res ;
+      List.hd res
+  in
+  Collection.{ length = len ; get }
+
 module Marker = struct
   type ('k, 'v) t = ('v * ('k, 'v) Hashtbl.t)
   let create nb d = (d, Hashtbl.create nb)
@@ -641,7 +666,7 @@ let ipers ((_, get) as base) : iper Collection.t =
     100000
 
 let persons ((_, get) as base : base) : person Collection.t =
-  mk_collection (nb_of_persons base) ("", `Null)
+  mk_collection' (nb_of_persons base)
     (fun offset limit ->
        Printf.sprintf "persons?offset=%d&limit=%d" offset limit
        |> get ~__LOC__
@@ -668,13 +693,16 @@ let ifams ((_, get) as base) : ifam Collection.t =
     100000
 
 let families ((_, get) as base) : family Collection.t =
-  mk_collection (nb_of_families base) `Null
+  mk_collection' (nb_of_families base)
     (fun offset limit ->
        Printf.sprintf "families?offset=%d&limit=%d" offset limit
        |> get ~__LOC__
        |> Yojson.Basic.from_string
        |> function
-       | `List list -> List.map (J.member "family") list
+       | `List list ->
+         List.map
+           (fun x -> ( J.to_string (J.member "_key" x), J.member "family" x) )
+           list
        | _ -> failwith __LOC__
     )
     10000

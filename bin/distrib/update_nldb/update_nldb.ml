@@ -151,8 +151,7 @@ let compute base bdir =
   flush stderr;
   ProgrBar.full := '*';
   ProgrBar.start ();
-  Gwdb.Collection.iteri (fun i ifam ->
-    let fam = foi base ifam in
+  Gwdb.Collection.iteri (fun i fam ->
     let s =
       let sl =
         [get_comment fam; get_fsources fam; get_marriage_note fam;
@@ -171,10 +170,10 @@ let compute base bdir =
     let list = notes_links s in
     if list = ([], []) then ()
     else
-      let pg = NotesLinks.PgFam ifam in
+      let pg = NotesLinks.PgFam (get_fam_index fam) in
       db := NotesLinks.add_in_db !db pg list ;
       ProgrBar.run i nb_fam
-    ) (Gwdb.ifams base) ;
+    ) (Gwdb.families base) ;
   ProgrBar.finish ();
   NotesLinks.write_db bdir !db
 
