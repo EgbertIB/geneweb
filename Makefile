@@ -29,7 +29,9 @@ BUILD_DIR=_build/default
 # 	bin/distrib/setup \
 # 	bin/distrib/update_nldb
 
-INSTALL_EXE = bin/distrib/gwd
+INSTALL_EXE = \
+	bin/distrib/gwd \
+	bin/distrib/update_nldb
 
 ALL_EXE = \
 	$(INSTALL_EXE) \

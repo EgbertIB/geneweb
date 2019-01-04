@@ -38,7 +38,7 @@ let open_base name =
   (* print_endline __LOC__ ; *)
   ( name
   , fun ~__LOC__:_ request ->
-    (* try *)
+    try
       (* print_endline __LOC__ ; *)
       let url = Printf.sprintf "http://localhost:8529/_db/Trees/geneweb/%s/%s" name request in
       print_endline @@ Printf.sprintf "%s: %s" __LOC__ url ;
@@ -52,9 +52,9 @@ let open_base name =
       Curl.perform connection ;
       Curl.cleanup connection ;
       Buffer.contents result
-    (* with
-     * | Curl.CurlException (_curlCode, i, s) as e ->
-     *   failwith @@ (Printf.sprintf "%s %d %s %s" __LOC__ i s (Printexc.to_string e)) *)
+    with
+    | Curl.CurlException (_curlCode, i, s) as e ->
+      failwith @@ (Printf.sprintf "%s %d %s %s" __LOC__ i s (Printexc.to_string e))
   )
 
 let close_base _base = ()
@@ -359,15 +359,60 @@ let nobtit _base _ _ (_key, p) =
 let person_misc_names _f = failwith __LOC__
 let gen_person_misc_names _f = failwith __LOC__
 
-let base_wiznotes_dir _f = (* failwith __LOC__ *) let () = print_endline __LOC__ in "notes_d"
-let base_notes_dir _f = (* failwith __LOC__ *) let () = print_endline __LOC__ in "wiznotes"
-let base_notes_origin_file _f = (* failwith __LOC__ *) let () = print_endline __LOC__ in ""
-let base_notes_are_empty _base _istr = let () = print_endline __LOC__ in true (* FIXME *)
-let base_notes_read_first_line _f _s = (* failwith __LOC__ *) let () = print_endline __LOC__ in ""
-let base_notes_read _f _s = (* failwith __LOC__ *) let () = print_endline __LOC__ in ""
+(* Copied from gwdb1/database.ml *)
+let read_notes bname fnotes rn_mode =
+  let bname =
+    if Filename.check_suffix bname ".gwb" then bname else bname ^ ".gwb"
+  in
+  let fname =
+    if fnotes = "" then "notes"
+    else Filename.concat "notes_d" (fnotes ^ ".txt")
+  in
+  try
+    let ic = Secure.open_in (Filename.concat bname fname) in
+    let str =
+      match rn_mode with
+        RnDeg -> if in_channel_length ic = 0 then "" else " "
+      | Rn1Ln -> (try input_line ic with End_of_file -> "")
+      | RnAll ->
+        let rec loop len =
+          match input_char ic with
+          | exception End_of_file -> Buff.get len
+          | c -> loop (Buff.store len c)
+        in
+        loop 0
+    in
+    close_in ic ;
+    str
+  with Sys_error _ -> ""
+
+
+let base_wiznotes_dir _base =
+  "notes_d"
+
+let base_notes_dir _base =
+  "wiznotes"
+
+(* FIXME *)
+let base_notes_origin_file _base =
+  let () = print_endline __LOC__ in ""
+
+let base_notes_are_empty (bname, _get) fnotes =
+  read_notes bname fnotes RnDeg = ""
+
+let base_notes_read_first_line (bname, _get) fnotes =
+  read_notes bname fnotes Rn1Ln
+
+let base_notes_read (bname, _get) fnotes =
+  read_notes bname fnotes RnAll
+
 let ascends_array _f = let () = print_endline __LOC__ in failwith __LOC__
 let persons_array _base = let () = print_endline __LOC__ in failwith __LOC__
-let base_particles _f = (* failwith __LOC__ *) let () = print_endline __LOC__ in []
+let base_particles (bname, _get) =
+  (* FIXME: memoize *)
+  let () = print_endline __LOC__ in
+  Mutil.input_particles (Filename.concat bname "particles.txt")
+
 let base_visible_write _ = (* failwith __LOC__ *) let () = print_endline __LOC__ in ()
 let base_visible_get _ _ _ = (* failwith __LOC__ *) let () = print_endline __LOC__ in true
 
@@ -551,6 +596,7 @@ module Collection = struct
 
 end
 
+(* TODO: do not keep full array, only current bulk *)
 let mk_collection len init get bulk_size =
   let current = ref (-1) in
   let cache = Array.make len init in
@@ -621,8 +667,17 @@ let ifams ((_, get) as base) : ifam Collection.t =
     )
     100000
 
-let families base =
-  Collection.map (foi base) (ifams base)
+let families ((_, get) as base) : family Collection.t =
+  mk_collection (nb_of_families base) `Null
+    (fun offset limit ->
+       Printf.sprintf "families?offset=%d&limit=%d" offset limit
+       |> get ~__LOC__
+       |> Yojson.Basic.from_string
+       |> function
+       | `List list -> List.map (J.member "family") list
+       | _ -> failwith __LOC__
+    )
+    10000
 
 let ifam_marker ifams init =
   Marker.create (Collection.length ifams) init
