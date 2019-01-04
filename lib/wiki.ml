@@ -52,28 +52,28 @@ let section_level s len =
 let notes_aliases conf =
   let fname =
     match p_getenv conf.base_env "notes_alias_file" with
-      Some f -> Util.base_path [] f
+    | Some f -> Util.base_path [] f
     | None ->
-        Filename.concat (Util.base_path [] (conf.bname ^ ".gwb"))
-          "notes.alias"
+      Filename.concat (Util.base_path [] (conf.bname ^ ".gwb"))
+        "notes.alias"
   in
   match try Some (Secure.open_in fname) with Sys_error _ -> None with
-    Some ic ->
-      let rec loop list =
-        match try Some (input_line ic) with End_of_file -> None with
-          Some s ->
-            let list =
-              try
-                let i = String.index s ' ' in
-                (String.sub s 0 i,
-                 String.sub s (i + 1) (String.length s - i - 1)) ::
-                list
-              with Not_found -> list
-            in
-            loop list
-        | None -> close_in ic; list
-      in
-      loop []
+  | Some ic ->
+    let rec loop list =
+      match try Some (input_line ic) with End_of_file -> None with
+      | Some s ->
+        let list =
+          match String.index_opt s ' ' with
+          | Some i ->
+            ( String.sub s 0 i
+            , String.sub s (i + 1) (String.length s - i - 1))
+            :: list
+          | None -> list
+        in
+        loop list
+      | None -> close_in ic; list
+    in
+    loop []
   | None -> []
 
 let map_notes aliases f = try List.assoc f aliases with Not_found -> f
