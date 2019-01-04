@@ -33,9 +33,9 @@ let open_base name =
   let result = Buffer.create 16384 in
   let error = ref "" in
   let write data =
-    print_endline __LOC__ ;
+    (* print_endline __LOC__ ; *)
     Buffer.add_string result data ;
-    print_endline @@ Printf.sprintf "%s: %d / %d" __LOC__ (String.length data) (Buffer.length result) ;
+    (* print_endline @@ Printf.sprintf "%s: %d / %d" __LOC__ (String.length data) (Buffer.length result) ; *)
     String.length data
   in
   (* print_endline __LOC__ ; *)
@@ -44,7 +44,7 @@ let open_base name =
     try
       (* print_endline __LOC__ ; *)
       let url = Printf.sprintf "http://localhost:8529/_db/Trees/geneweb/%s/%s" name request in
-      print_endline @@ Printf.sprintf "%s: %s" __LOC__ url ;
+      (* print_endline @@ Printf.sprintf "%s: %s" __LOC__ url ; *)
       Buffer.reset result ;
       let connection = Curl.init () in
       Curl.set_httpheader connection [];
@@ -166,7 +166,7 @@ let get_rparents (_key, p) =
 
 let get_parents (_key, p) =
   match J.member "parents" p with
-  | `String i -> Some i
+  | `List [ `String i ] -> Some i
   | _ -> None (* FIXME *)
 
 let get_sex (_key, p) = match get_int ~__LOC__ p "sex" with
