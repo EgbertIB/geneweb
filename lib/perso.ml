@@ -5962,15 +5962,10 @@ let gen_interp_templ menu title templ_fname conf base p =
       Vint (max_descendant_level base desc_level_table_m)
     in
     let nldb () =
-      let () = print_endline __LOC__ in
       let bdir = Util.base_path [] (conf.bname ^ ".gwb") in
-      let () = print_endline @@ Printf.sprintf "%s: %s" __LOC__ bdir in
       let fname = Filename.concat bdir "notes_links" in
-      let () = print_endline @@ Printf.sprintf "%s: %s" __LOC__ fname in
       let db = NotesLinks.read_db_from_file fname in
-      let () = print_endline @@ Printf.sprintf "%s: %d" __LOC__ (List.length db) in
       let db = Notes.merge_possible_aliases conf db in
-      let () = print_endline @@ Printf.sprintf "%s: %d" __LOC__ (List.length db) in
       Vnldb db
     in
     let all_gp () = Vallgp (get_all_generations conf base p) in
