@@ -47,7 +47,22 @@ val hidden_env : config -> unit
 val nobtit : config -> base -> person -> title list
 
 val strictly_after_private_years : config -> dmy -> bool
+
+(** [authorized_age conf base p]
+    Compute [p] visualization rights following these rules:
+    - [true] if [wizard] or [friend]
+    - [true] if [conf.public_if_title] and [p] has one or more title(s)
+    - [true] if [p] is not dead:
+      [true] if [conf.private_years = 0], otherwise [false]
+    - [false] if [p] is not dead and [conf.private_years <> 0]
+    - if [p] has a birth,baptism or death date:
+      [true] if it happened more than [conf.private_years] ago, otherwise [false]
+    - [true] if [p] is not [Private] and [conf.public_if_no_date]
+    - [true] if [p] get married more than [conf.private_years] ago
+    - [false] in all other cases
+*)
 val authorized_age : config -> base -> person -> bool
+
 val is_old_person : config -> (iper, istr) gen_person -> bool
 val fast_auth_age : config -> person -> bool
 
