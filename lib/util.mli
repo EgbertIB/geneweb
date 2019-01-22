@@ -65,7 +65,16 @@ val wprint_geneweb_link : config -> string -> string -> unit
 val is_restricted : config -> base -> iper -> bool
 val is_hidden : person -> bool
 
+(** [pget conf base ip]
+    Check if you have the right permission in order to acces [ip],
+    and return the corresponding [person], or an empty [person] depending
+    on these rights.
+ *)
 val pget : config -> base -> iper -> person
+
+(** Same as [pget], but for family *)
+val fget : config -> base -> ifam -> family
+
 val string_gen_person :
   base -> (iper, istr) gen_person -> (iper, string) gen_person
 val string_gen_family :

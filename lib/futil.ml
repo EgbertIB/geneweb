@@ -107,6 +107,8 @@ let map_person_ps fp fs p =
 
 let map_union_f ff u = {family = Array.map ff u.family}
 
+let map_ascend_f ff a = { parents = Opt.map ff a.parents ; consang = a.consang }
+
 let map_family_ps fp fs fam =
   {marriage = fam.marriage; marriage_place = fs fam.marriage_place;
    marriage_note = fs fam.marriage_note; marriage_src = fs fam.marriage_src;

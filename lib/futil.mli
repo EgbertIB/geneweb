@@ -15,6 +15,7 @@ val map_relation_ps :
 val map_person_ps :
   ('a -> 'c) -> ('b -> 'd) -> ('a, 'b) gen_person -> ('c, 'd) gen_person
 val map_union_f : ('a -> 'b) -> 'a gen_union -> 'b gen_union
+val map_ascend_f : ('a -> 'b) -> 'a gen_ascend -> 'b gen_ascend
 
 val map_family_ps :
   ('a -> 'c) -> ('b -> 'd) -> ('a, 'b) gen_family -> ('c, 'd) gen_family

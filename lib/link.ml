@@ -88,7 +88,7 @@ let init_cache conf base request base_prefix ip nb_asc from_gen_desc nb_desc =
   let data = MLinkext.gen_link_tree_params data `pb in
   let url =
     Printf.sprintf
-      "http://%s:%d/%s?m=API_LINK_TREE&input=pb&output=pb&sig=azerty&data=%s"
+      "http://%s:%d/%s?m=API_LINK_TREE&input=pb&output=pb&data=%s"
       conf.api_host conf.api_port base_prefix (Wserver.encode data)
   in
   let res = ref "" in

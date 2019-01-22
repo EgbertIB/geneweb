@@ -35,6 +35,25 @@ let no_person empty_string ip =
 let no_ascend = {parents = None; consang = Adef.no_consang}
 let no_union = {family = [| |]}
 
+let no_family empty_string ifam : ('iper, 'string) gen_family =
+  { marriage = Adef.cdate_None ;
+    marriage_place = empty_string;
+    marriage_note = empty_string;
+    marriage_src = empty_string;
+    witnesses = [||];
+    relation = NoMention;
+    divorce = NotDivorced;
+    fevents = [];
+    comment = empty_string;
+    origin_file = empty_string;
+    fsources = empty_string;
+    fam_index = ifam }
+
+let no_descend = { children = [||] }
+
+let no_couple =
+  Adef.couple (Adef.iper_of_int (-1)) (Adef.iper_of_int (-1))
+
 (* Strings - common definitions *)
 
 type istr =
@@ -216,6 +235,8 @@ type ('p, 'a, 'u) person_fun =
     get_pevents : 'p -> pers_event list;
     gen_person_of_person : 'p -> (iper, istr) Def.gen_person;
     dsk_person_of_person : 'p -> Dbdisk.dsk_person;
+    gen_union_of_union : 'u -> ifam Def.gen_union;
+    gen_ascend_of_ascend : 'a -> ifam Def.gen_ascend;
     get_consang : 'a -> Adef.fix;
     get_parents : 'a -> ifam option;
     get_family : 'u -> ifam array }
@@ -270,9 +291,14 @@ let person1_fun =
           p.Def.pevents);
    gen_person_of_person =
      (fun p -> Futil.map_person_ps (fun p -> p) (fun s -> Istr s) p);
+   gen_union_of_union =
+     (fun u -> Futil.map_union_f (fun f -> f) u);
+   gen_ascend_of_ascend =
+     (fun a -> Futil.map_ascend_f (fun f -> f) a);
    dsk_person_of_person = (fun p -> p);
    get_consang = (fun a -> a.Def.consang);
-   get_parents = (fun a -> a.Def.parents); get_family = fun u -> u.Def.family}
+   get_parents = (fun a -> a.Def.parents);
+   get_family = fun u -> u.Def.family}
 
 (* Persons - implementation database 2 *)
 
@@ -408,6 +434,10 @@ let person2_fun =
            burial_src = self.get_burial_src pp; pevents = self.get_pevents pp;
            notes = self.get_notes pp; psources = self.get_psources pp;
            key_index = self.get_key_index pp});
+     gen_union_of_union =
+       (fun (_db2, _i) -> assert false);
+     gen_ascend_of_ascend =
+       (fun (_db2, _i) -> assert false);
      dsk_person_of_person =
        (fun _p -> failwith "not impl dsk_person_of_person");
      get_consang =
@@ -493,8 +523,10 @@ let person2gen_fun =
    gen_person_of_person =
      (fun (db2, _i, p) ->
         Futil.map_person_ps (fun p -> p) (fun s -> Istr2New (db2, s)) p);
+   gen_union_of_union = (fun _ -> assert false);
+   gen_ascend_of_ascend = (fun _ -> assert false);
    dsk_person_of_person =
-     (fun (_db2, _i, _p) -> failwith "not impl dsk_person_of_person (gen)");
+     (fun (_db2, _i, _p) -> assert false);
    get_consang = (fun (_db2, _i, a) -> a.Def.consang);
    get_parents = (fun (_db2, _i, a) -> a.Def.parents);
    get_family = fun (_db2, _i, u) -> u.Def.family}
@@ -593,6 +625,14 @@ let gen_person_of_person p =
   let f pf = pf.gen_person_of_person in wrap_per f f f p
 let dsk_person_of_person p =
   let f pf = pf.dsk_person_of_person in wrap_per f f f p
+
+let gen_ascend_of_ascend a =
+  let f pf = pf.gen_ascend_of_ascend in
+  wrap_asc f f f a
+
+let gen_union_of_union u =
+  let f pf = pf.gen_union_of_union in
+  wrap_uni f f f u
 
 let get_consang a =
   let f pf = pf.get_consang in
@@ -878,6 +918,7 @@ let gen_descend_of_descend des =
 type base =
   { close_base : unit -> unit;
     empty_person : iper -> person;
+    empty_family : ifam -> family;
     person_of_gen_person :
       (iper, istr) gen_person * ifam gen_ascend * ifam gen_union -> person;
     family_of_gen_family :
@@ -1032,6 +1073,11 @@ let base1 base =
             (base, 0,
              {fam1 = Some (Futil.map_family_ps (fun p -> p) un_istr f);
               cpl1 = Some c; des1 = Some d}));
+     empty_family =
+       (fun ifam -> Family (base, Adef.int_of_ifam ifam
+                           , {fam1 = Some (no_family (Adef.istr_of_int 0) ifam);
+                              cpl1 = Some no_couple;
+                              des1 = Some no_descend}));
      poi =
        (fun i ->
           Person
@@ -1179,6 +1225,12 @@ let base2 db2 =
             (db2, Adef.int_of_iper p.key_index,
              {per2 = Some (Some (Futil.map_person_ps (fun p -> p) un_istr2 p));
               asc2 = Some (Some a); uni2 = Some (Some u)}));
+     empty_family =
+       (fun ifam -> Family2 (db2, Adef.int_of_ifam ifam
+                            , {fam2 = Some (Some (no_family "" ifam));
+                               cpl2 = Some (Some no_couple);
+                               des2 = Some (Some no_descend)}));
+
      family_of_gen_family =
        (fun (f, c, d) ->
           Family2
@@ -1388,6 +1440,7 @@ let open_base bname =
 
 let close_base (b : base) = b.close_base ()
 let empty_person (b : base) = b.empty_person
+let empty_family (b : base) = b.empty_family
 let person_of_gen_person (b : base) = b.person_of_gen_person
 let family_of_gen_family (b : base) = b.family_of_gen_family
 let poi (b : base) = b.poi

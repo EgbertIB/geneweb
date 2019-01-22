@@ -5,9 +5,6 @@ open Config
 open Def
 open Gwdb
 
-let is_hide_names conf p =
-  if conf.hide_names || get_access p = Private then true else false
-
 let sharelib =
   List.fold_right Filename.concat [Gwlib.prefix; "share"] "geneweb"
 
@@ -70,7 +67,6 @@ let amp_capitalize capitale s =
           (Char.chr (Char.code s.[1] - Char.code 'a' + Char.code 'A')) ^
         String.sub s 2 (String.length s - 2)
     | _ -> s
-
 
 (* Copied from Ocaml < 4.03. To be removed with proper utf8 support *)
 let uppercase c =
@@ -609,18 +605,57 @@ let authorized_age conf base p =
         (Adef.od_of_cdate (get_birth p))
   end
 
+let is_restricted_aux conf base p =
+  not (is_quest_string (get_surname p))
+  && not (is_quest_string (get_first_name p))
+  && not (authorized_age conf base p)
+
 let is_restricted (conf : config) base ip =
-  let fct p =
-    not (is_quest_string (get_surname p)) &&
-    not (is_quest_string (get_first_name p)) &&
-    not (authorized_age conf base p)
-  in
-  if conf.use_restrict then base_visible_get base fct (Adef.int_of_iper ip)
+  if conf.use_restrict
+  then base_visible_get base (is_restricted_aux conf base) (Adef.int_of_iper ip)
   else false
 
+(* TODO: removed this from interface. Use foi only when you know what you are doing, and use pget otherwise. *)
+let is_hide_names conf p =
+  if conf.hide_names || get_access p = Private then true else false
+
+(* TODO: Make this the default way to access a person (and do the same with fget). *)
 let pget (conf : config) base ip =
-  if is_restricted conf base ip then Gwdb.empty_person base ip
-  else poi base ip
+  let dummy_iper = Adef.iper_of_int (-1) in
+  if ip = dummy_iper then Gwdb.empty_person base dummy_iper
+  else if conf.use_restrict
+  then
+    if base_visible_get base (is_restricted_aux conf base) (Adef.int_of_iper ip)
+    then Gwdb.empty_person base dummy_iper
+    else poi base ip
+  else
+    let p = poi base ip in
+    if is_restricted_aux conf base p
+    then
+      if conf.hide_names || get_access p = Private
+      then Gwdb.empty_person base dummy_iper
+      else Gwdb.person_of_gen_person base
+          ( { (Gwdb.empty_person base ip |> Gwdb.gen_person_of_person)
+              with first_name = (Gwdb.get_first_name p)
+                 ; surname = (Gwdb.get_surname p) }
+          , Gwdb.gen_ascend_of_ascend p
+          , Gwdb.gen_union_of_union p)
+    else p
+
+let fget conf base ifam =
+  let fam = foi base ifam in
+  if conf.use_restrict
+  then
+    if base_visible_get base (is_restricted_aux conf base) (Adef.int_of_iper @@ get_father fam)
+    || base_visible_get base (is_restricted_aux conf base) (Adef.int_of_iper @@ get_mother fam)
+    then Gwdb.empty_family base @@ Adef.ifam_of_int (-1)
+    else fam
+  else
+    let fam = foi base ifam in
+    if is_restricted_aux conf base (poi base @@ get_father fam)
+    || is_restricted_aux conf base (poi base @@ get_mother fam)
+    then Gwdb.empty_family base @@ Adef.ifam_of_int (-1)
+    else fam
 
 let string_gen_person base p = Futil.map_person_ps (fun p -> p) (sou base) p
 

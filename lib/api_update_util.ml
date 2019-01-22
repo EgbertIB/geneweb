@@ -630,44 +630,14 @@ let husband_wife conf base p =
   in
   loop 0
 
-
-(* ************************************************************************** *)
-(*  [Fonc] pers_to_piqi_simple_person :
-             config -> base -> person -> SimplePerson                         *)
-(** [Description] : Retourne à partir d'une person (gwdb) une SimplePerson
-                    (piqi).
-    [Args] :
-      - conf      : configuration de la base
-      - base      : base de donnée
-      - p         : person
-    [Retour] :
-      - Person : Retourne une personne dont tous les champs sont complétés.
-    [Rem] : Non exporté en clair hors de ce module.                           *)
-(* ************************************************************************** *)
 let pers_to_piqi_simple_person conf base p =
-  let index = Int32.of_int (Adef.int_of_iper (get_key_index p)) in
-  let sex =
-    match get_sex p with
-    | Male -> `male
-    | Female -> `female
-    | Neuter -> `unknown
-  in
-  let sosa =
-    let sosa_nb = Perso.get_single_sosa conf base p in
-    if Sosa.eq sosa_nb Sosa.zero then `no_sosa
-    else if Sosa.eq sosa_nb Sosa.one then `sosa_ref
-    else `sosa
-  in
-  let (first_name, surname) =
-    Api_saisie_read.person_firstname_surname_txt base p
-  in
+  let open Api_saisie_read in
+  let index = fill_index p in
+  let sex = fill_sex p in
+  let sosa = fill_sosa p in
   let (birth_short, birth_place, death_short, death_place) =
-    let (birth, death, _) = Date.get_birth_death_date p in
-    let birth =
-      match birth with
-      | Some d -> Date.string_slash_of_date conf d
-      | None -> ""
-    in
+    let (birth_date, death_date, _) = Date.get_birth_death_date p in
+    let birth = Opt.map (Date.string_slash_of_date conf) birth_date in
     let birth_place =
       let birth_place = sou base (get_birth_place p) in
       if birth_place <> "" then Util.string_of_place conf birth_place
@@ -675,11 +645,7 @@ let pers_to_piqi_simple_person conf base p =
         let baptism_place = sou base (get_baptism_place p) in
         Util.string_of_place conf baptism_place
     in
-    let death =
-      match death with
-      | Some d -> Date.string_slash_of_date conf d
-      | None -> ""
-    in
+    let death = Opt.map (Date.string_slash_of_date conf) death_date  in
     let death_place =
       let death_place = sou base (get_death_place p) in
       if death_place <> "" then Util.string_of_place conf death_place
@@ -689,26 +655,18 @@ let pers_to_piqi_simple_person conf base p =
     in
     (birth, birth_place, death, death_place)
   in
-  let image =
-    let img = sou base (get_image p) in
-    if img <> "" then img
-    else ""
-      (* On veut pas vraiment vérifier les images fichiers ...
-      match Api_util.find_image_file conf base p with
-      | Some s -> "1"
-      | None -> ""
-      *)
-  in
+  let image = fill_image conf base p in
+  let (first_name, surname) = person_firstname_surname_txt base p in
   {
     Mwrite.Simple_person.index = index;
     sex = sex;
     lastname = surname;
     firstname = first_name;
-    birth_short_date = if birth_short = "" then None else Some birth_short;
-    birth_place = if birth_place = "" then None else Some birth_place;
-    death_short_date = if death_short = "" then None else Some death_short;
-    death_place = if death_place = "" then None else Some death_place;
-    image = if image = "" then None else Some image;
+    birth_short_date = birth_short;
+    birth_place = Opt.of_string birth_place;
+    death_short_date = death_short;
+    death_place = Opt.of_string death_place;
+    image = image;
     sosa = sosa;
   }
 
@@ -726,33 +684,15 @@ let pers_to_piqi_simple_person conf base p =
     [Rem] : Non exporté en clair hors de ce module.                           *)
 (* ************************************************************************** *)
 let pers_to_piqi_person_search conf base p =
-  let index = Int32.of_int (Adef.int_of_iper (get_key_index p)) in
-  let sex =
-    match get_sex p with
-    | Male -> `male
-    | Female -> `female
-    | Neuter -> `unknown
-  in
-  let sosa =
-    let sosa_nb = Perso.get_sosa_person p in
-    if Sosa.eq sosa_nb Sosa.zero then `no_sosa
-    else if Sosa.eq sosa_nb Sosa.one then `sosa_ref
-    else `sosa
-  in
+  let open Api_saisie_read in
+  let index = fill_index p in
+  let sex = fill_sex p in
+  let sosa = fill_sosa p in
   let (first_name, surname) =
-    Api_saisie_read.person_firstname_surname_txt base p
+    person_firstname_surname_txt base p
   in
-  let dates = Api_saisie_read.short_dates_text conf base p in
-  let image =
-    let img = sou base (get_image p) in
-    if img <> "" then img
-    else ""
-      (* On veut pas vraiment vérifier les images fichiers ...
-      match Api_util.find_image_file conf base p with
-      | Some s -> "1"
-      | None -> ""
-      *)
-  in
+  let dates = short_dates_text conf base p in
+  let image = fill_image conf base p in
   let family =
     let hw = husband_wife conf base p in
     if hw <> "" then hw
@@ -764,39 +704,16 @@ let pers_to_piqi_person_search conf base p =
     lastname = surname;
     firstname = first_name;
     dates = if dates = "" then None else Some dates;
-    image = if image = "" then None else Some image;
+    image = image;
     sosa = sosa;
     family = family;
   }
 
-
-(* ************************************************************************** *)
-(*  [Fonc] pers_to_piqi_person_search_info :
-             config -> base -> person -> PersonSearchInfo                     *)
-(** [Description] : Retourne une personne qui sert lors de la recherche pour
-                    relier un individu dans la saisie (affichage des
-                    informations détaillées).
-    [Args] :
-      - conf      : configuration de la base
-      - base      : base de donnée
-      - p         : person
-    [Retour] : PersonSearchInfo
-    [Rem] : Non exporté en clair hors de ce module.                           *)
-(* ************************************************************************** *)
 let pers_to_piqi_person_search_info conf base p =
-  let index = Int32.of_int (Adef.int_of_iper (get_key_index p)) in
-  let sex =
-    match get_sex p with
-    | Male -> `male
-    | Female -> `female
-    | Neuter -> `unknown
-  in
-  let sosa =
-    let sosa_nb = Perso.get_single_sosa conf base p in
-    if Sosa.eq sosa_nb Sosa.zero then `no_sosa
-    else if Sosa.eq sosa_nb Sosa.one then `sosa_ref
-    else `sosa
-  in
+  let module ASR = Api_saisie_read in
+  let index = ASR.fill_index p in
+  let sex = ASR.fill_sex p in
+  let sosa = ASR.fill_sosa p in
   let surname = sou base (get_surname p) in
   let first_name = sou base (get_first_name p) in
   let publicname = sou base (get_public_name p) in
@@ -804,139 +721,36 @@ let pers_to_piqi_person_search_info conf base p =
   let qualifiers = List.map (sou base) (get_qualifiers p) in
   let firstname_aliases = List.map (sou base) (get_first_names_aliases p) in
   let surname_aliases = List.map (sou base) (get_surnames_aliases p) in
-  let image =
-    let img = sou base (get_image p) in
-    if img <> "" then img
-    else ""
-      (* On veut pas vraiment vérifier les images fichiers ...
-      match Api_util.find_image_file conf base p with
-      | Some s -> "1"
-      | None -> ""
-      *)
-  in
-  let occupation =
-    let s = sou base (get_occupation p) in
-    let s =
-      let wi =
-        {Wiki.wi_mode = "NOTES"; Wiki.wi_cancel_links = conf.cancel_links;
-         Wiki.wi_file_path = Notes.file_path conf base;
-         Wiki.wi_person_exists = person_exists conf base;
-         Wiki.wi_always_show_link = conf.wizard || conf.friend}
-      in
-      Wiki.syntax_links conf wi s
-    in
-    string_with_macros conf [] s
-  in
+  let image = ASR.fill_image conf base p in
+  let occupation = ASR.fill_occupation_aux conf base @@ sou base (get_occupation p) in
   let events =
-    List.map
-      (fun (name, date, place, note, src, w, isp) ->
-        let name =
-          match name with
-          | Perso.Pevent name -> Util.string_of_pevent_name conf base name
-          | Perso.Fevent name -> Util.string_of_fevent_name conf base name
-        in
-        let (date, _, date_conv, _, date_cal) =
-          match Adef.od_of_cdate date with
-          | Some d -> Api_saisie_read.string_of_date_and_conv conf d
-          | _ -> ("", "", "", "", None)
-        in
-        let place = Util.string_of_place conf (sou base place) in
-        let note =
-          let env = [('i', fun () -> Util.default_image_name base p)] in
-          let s = sou base note in
-          let s = string_with_macros conf env s in
-          let lines = Api_wiki.html_of_tlsw conf s in
-          let wi =
-            {Api_wiki.wi_mode = "NOTES"; Api_wiki.wi_cancel_links = conf.cancel_links;
-             Api_wiki.wi_file_path = Notes.file_path conf base;
-             Api_wiki.wi_person_exists = person_exists conf base;
-             Api_wiki.wi_always_show_link = conf.wizard || conf.friend}
-          in
-          let s = Api_wiki.syntax_links conf wi (String.concat "\n" lines) in
-          if conf.pure_xhtml then Util.check_xhtml s else s
-        in
-        let src =
-          let s = sou base src in
-          let env = [('i', fun () -> Util.default_image_name base p)] in
-          let s =
-            let wi =
-              {Wiki.wi_mode = "NOTES";
-               Wiki.wi_cancel_links = conf.cancel_links;
-               Wiki.wi_file_path = Notes.file_path conf base;
-               Wiki.wi_person_exists = person_exists conf base;
-               Wiki.wi_always_show_link = conf.wizard || conf.friend}
-            in
-            Wiki.syntax_links conf wi s
-          in
-          string_with_macros conf env s
-        in
-        let spouse =
-          match isp with
-          | Some ip ->
-              let sp = poi base ip in
-              Some (pers_to_piqi_simple_person conf base sp)
-          | None -> None
-        in
-        let witnesses =
-          List.map
-            (fun (ip, wk) ->
-               let witness_type =
-                 match wk with
-                 | Witness -> `witness
-                 | Witness_GodParent -> `witness_godparent
-               in
-               let witness = poi base ip in
-               let witness =
-                 pers_to_piqi_simple_person conf base witness
-               in
-               Mwrite.Witness_event.({
-                 witness_type = witness_type;
-                 witness = witness;
-               }))
-            (Array.to_list w)
-        in
-        {
-          Mwrite.Event.name = name;
-          date = if date = "" then None else Some date;
-          date_conv = if date_conv = "" then None else Some date_conv;
-          date_cal = date_cal;
-          place = if place = "" then None else Some place;
-          reason = None;
-          note = if note = "" then None else Some note;
-          src = if src= "" then None else Some src;
-          spouse = spouse;
-          witnesses = witnesses;
-        })
-      (Perso.events_list conf base p)
+    ASR.fill_events
+      conf base p ""
+      (fun conf base p _ -> pers_to_piqi_simple_person conf base p)
+      (fun witness_type witness -> Mwrite.Witness_event.({ witness_type ; witness }))
+      (fun name _ date _ _ date_conv _ date_cal place note src spouse witnesses ->
+         {
+           Mwrite.Event.name = name;
+           date = Opt.of_string date;
+           date_conv = Opt.of_string date_conv;
+           date_cal = date_cal;
+           place = Opt.of_string place;
+           reason = None;
+           note = Opt.of_string note;
+           src = Opt.of_string src;
+           spouse = spouse;
+           witnesses = witnesses;
+         })
   in
   let notes =
     let env = [('i', fun () -> Util.default_image_name base p)] in
-    let s = sou base (get_notes p) in
-    let s = string_with_macros conf env s in
-    let lines = Api_wiki.html_of_tlsw conf s in
-    let wi =
-      {Api_wiki.wi_mode = "NOTES"; Api_wiki.wi_cancel_links = conf.cancel_links;
-       Api_wiki.wi_file_path = Notes.file_path conf base;
-       Api_wiki.wi_person_exists = person_exists conf base;
-       Api_wiki.wi_always_show_link = conf.wizard || conf.friend}
-    in
-    let s = Api_wiki.syntax_links conf wi (String.concat "\n" lines) in
-    if conf.pure_xhtml then Util.check_xhtml s else s
+    let wiki_notes = sou base (get_notes p) in
+    let separator_string = "\n" in
+    ASR.convert_wiki_notes_to_html_notes conf base env wiki_notes separator_string
   in
   let psources =
     let s = sou base (get_psources p) in
-    let env = [('i', fun () -> Util.default_image_name base p)] in
-    let s =
-      let wi =
-        {Wiki.wi_mode = "NOTES";
-         Wiki.wi_cancel_links = conf.cancel_links;
-         Wiki.wi_file_path = Notes.file_path conf base;
-         Wiki.wi_person_exists = person_exists conf base;
-         Wiki.wi_always_show_link = conf.wizard || conf.friend}
-      in
-      Wiki.syntax_links conf wi s
-    in
-    string_with_macros conf env s
+    ASR.fill_sources_aux conf base p s
   in
   let has_sources = psources <> "" in
   let titles = Perso.nobility_titles_list conf base p in
@@ -1114,7 +928,7 @@ let pers_to_piqi_person_search_info conf base p =
     qualifiers = qualifiers;
     firstname_aliases = firstname_aliases;
     surname_aliases = surname_aliases;
-    image = if image = "" then None else Some image;
+    image = image;
     events = events;
     occupation = if occupation = "" then None else Some occupation;
     notes = if notes = "" then None else Some notes;
@@ -1144,14 +958,10 @@ let pers_to_piqi_person_search_info conf base p =
     [Rem] : Non exporté en clair hors de ce module.                           *)
 (* ************************************************************************** *)
 let pers_to_piqi_person_link conf base p =
+  let module ASR = Api_saisie_read in
   let create_link = `link in
-  let index = Int32.of_int (Adef.int_of_iper (get_key_index p)) in
-  let sex =
-    match get_sex p with
-    | Male -> `male
-    | Female -> `female
-    | Neuter -> `unknown
-  in
+  let index = ASR.fill_index p in
+  let sex = ASR.fill_sex p in
   let first_name = sou base (get_first_name p) in
   let surname = sou base (get_surname p) in
   let occ =
@@ -1160,10 +970,7 @@ let pers_to_piqi_person_link conf base p =
   in
   let occ = if occ = 0 then None else Some (Int32.of_int occ) in
   let dates = Api_saisie_read.short_dates_text conf base p in
-  let dates =
-    if dates = "" then None
-    else Some ("(" ^ dates ^ ")")
-  in
+  let dates = Opt.map (fun x -> "(" ^ x ^ ")") @@ Opt.of_string dates in
   {
     Mwrite.Person_link.create_link = create_link;
     index = index;
@@ -1187,15 +994,11 @@ let pers_to_piqi_person_link conf base p =
     [Rem] : Non exporté en clair hors de ce module.                          *)
 (* ************************************************************************* *)
 let pers_to_piqi_mod_person conf base p =
+  let module ASR = Api_saisie_read in
   let digest = Update.digest_person (UpdateInd.string_person_of base p) in
   let create_link = `link in
-  let index = Int32.of_int (Adef.int_of_iper (get_key_index p)) in
-  let sex =
-    match get_sex p with
-    | Male -> `male
-    | Female -> `female
-    | Neuter -> `unknown
-  in
+  let index = ASR.fill_index p in
+  let sex = ASR.fill_sex p in
   let surname = sou base (get_surname p) in
   let first_name = sou base (get_first_name p) in
   let occ =
@@ -1346,10 +1149,10 @@ let pers_to_piqi_mod_person conf base p =
          {
            Mwrite.Pevent.pevent_type = pevent_type;
            date = date;
-           place = if place = "" then None else Some place;
+           place = Opt.of_string place;
            reason = reason;
-           note = if note = "" then None else Some note;
-           src = if src = "" then None else Some src;
+           note = Opt.of_string note;
+           src = Opt.of_string src;
            witnesses = witnesses;
            event_perso = event_perso;
          })
