@@ -7,6 +7,7 @@ module RC = Redis_sync.Client
 open Config
 open Def
 open Gwdb
+open Api_util
 
 let redis_host = ref "127.0.0.1"
 let redis_port = ref 6379
@@ -192,159 +193,60 @@ let piqi_date_of_date date =
       }
 
 let p_to_piqi_full_person conf base ip ip_spouse =
-  let baseprefix = conf.command in
-  let index = Int32.of_int (Adef.int_of_iper ip) in
-  let p = poi base ip in
-  let p_auth = Util.authorized_age conf base p in
-  let p_hidden = Util.is_hide_names conf p in
-  let gen_p = Util.string_gen_person base (gen_person_of_person p) in
-  let surname =
-    if not p_auth && p_hidden then "x"
-    else gen_p.surname
-  in
-  let first_name =
-    if not p_auth && p_hidden then "x"
-    else gen_p.first_name
-  in
-  let sn = Name.lower surname in
-  let fn = Name.lower first_name in
-  let occ = Int32.of_int (get_occ p) in
-  let image = if p_auth && gen_p.image <> "" then Some gen_p.image else None in
-  let occupation =
-    if p_auth && gen_p.occupation <> "" then Some gen_p.occupation else None
-  in
-  let publicname =
-    if not p_auth && p_hidden then None else Some gen_p.public_name
-  in
-  let qualifiers = if not p_auth && p_hidden then [] else gen_p.qualifiers in
-  (* TODO
-  let titles = Perso.nobility_titles_list conf base p in
-  let titles =
-    let tmp_conf = {(conf) with cancel_links = true} in
-    List.map (Perso.string_of_title tmp_conf base "" p) titles
-  in *)
-  let titles = [] in
-  let aliases = if not p_auth && p_hidden then [] else gen_p.aliases in
-  let sex =
-    match gen_p.sex with
-    | Male -> `male
-    | Female -> `female
-    | Neuter -> `unknown
-  in
-  let birth =
-    match Adef.od_of_cdate gen_p.birth with
-    | Some d when p_auth -> Some (piqi_date_of_date d)
-    | _ -> None
-  in
-  let birth_place =
-    if p_auth && gen_p.birth_place <> "" then Some gen_p.birth_place
-    else None
-  in
-  let baptism =
-    match Adef.od_of_cdate gen_p.baptism with
-    | Some d when p_auth -> Some (piqi_date_of_date d)
-    | _ -> None
-  in
-  let baptism_place =
-    if p_auth && gen_p.baptism_place <> "" then Some gen_p.baptism_place
-    else None
-  in
-  let (death_type, death) =
-    if p_auth then
-      match gen_p.death with
-      | NotDead -> (`not_dead, None)
-      | Death (_, cd) ->
-          let d = Adef.date_of_cdate cd in
-          (`dead, Some (piqi_date_of_date d))
-      | DeadYoung -> (`dead_young, None)
-      | DeadDontKnowWhen -> (`dead_dont_know_when, None)
-      | DontKnowIfDead -> (`dont_know_if_dead, None)
-      | OfCourseDead -> (`of_course_dead, None)
-    else
-      (`not_dead, None)
-  in
-  let death_place =
-    if p_auth && gen_p.death_place <> "" then Some gen_p.death_place
-    else None
-  in
-  let burial =
-    match gen_p.burial with
-    | Buried cod | Cremated cod ->
-        (match Adef.od_of_cdate cod with
-        | Some d when p_auth -> Some (piqi_date_of_date d)
-        | _ -> None)
-    | _ -> None
-  in
-  let burial_place =
-    if p_auth && gen_p.burial_place <> "" then Some gen_p.burial_place
-    else None
-  in
-  let families =
-    List.fold_right
-      (fun ifam accu ->
-        let isp = Gutil.spouse ip (foi base ifam) in
-        if isp = ip_spouse || ip_spouse = Adef.iper_of_int (-1) then
-          let baseprefix = conf.command in
-          let index = Int32.of_int (Adef.int_of_ifam ifam) in
-          let fl =
-            MLink.Family_link.({
-              baseprefix = baseprefix;
-              ifam = index;
-            })
-          in
-          fl :: accu
-        else accu)
-      (Array.to_list (get_family p)) []
-  in
-  {
-    MLink.Person.baseprefix = baseprefix;
-    ip = index;
-    n = sn;
-    p = fn;
-    oc = occ;
-    lastname = surname;
-    firstname = first_name;
-    image = image;
-    occupation = occupation;
-    public_name = publicname;
-    qualifiers = qualifiers;
-    titles = titles;
-    aliases = aliases;
-    sex = sex;
-    birth_date = birth;
-    birth_place = birth_place;
-    baptism_date = baptism;
-    baptism_place = baptism_place;
-    death_type = death_type;
-    death_date = death;
-    death_place = death_place;
-    burial_date = burial;
-    burial_place = burial_place;
-    families = families;
+  let p = Util.pget conf base ip in
+  let lastname = to_piqi_surname base p in
+  let firstname = to_piqi_firstname base p in
+  let death_type, death_date = to_piqi_death_type_n_date_aux (Opt.map piqi_date_of_date) p in
+  let titles = [] in               (* FIXME *)
+  { MLink.Person.baseprefix = to_piqi_baseprefix conf.command p
+  ; ip = to_piqi_index p
+  ; n = to_piqi_sn lastname
+  ; p = to_piqi_fn firstname
+  ; oc = to_piqi_occ p
+  ; lastname
+  ; firstname
+  ; image = to_piqi_image_opt base p
+  ; occupation = to_piqi_occupation_opt base p
+  ; public_name = to_piqi_publicname base p
+  ; qualifiers = to_piqi_qualifiers base p
+  ; titles
+  ; aliases = to_piqi_aliases base p
+  ; sex = to_piqi_sex p
+  ; birth_date = to_piqi_date_aux piqi_date_of_date (get_birth p)
+  ; birth_place = to_piqi_birth_place_opt base p
+  ; baptism_date = to_piqi_date_aux piqi_date_of_date (get_baptism p)
+  ; baptism_place = to_piqi_baptism_place_opt base p
+  ; death_type = death_type
+  ; death_date
+  ; death_place = to_piqi_death_place_opt base p
+  ; burial_date =
+      to_piqi_date_aux piqi_date_of_date
+        (match get_burial p with Buried d | Cremated d -> d | _ -> Adef.cdate_None)
+  ; burial_place = to_piqi_burial_place_opt base p
+  ; families =
+      Array.fold_right
+        (fun ifam acc ->
+           let isp = Gutil.spouse ip (Util.fget conf base ifam) in
+           if isp = ip_spouse || ip_spouse = Adef.iper_of_int (-1) then
+             let baseprefix = conf.command in
+             { MLink.Family_link.baseprefix
+             ; ifam = to_piqi_ifam ifam
+             } :: acc
+           else acc)
+        (get_family p) []
   }
 
 let fam_to_piqi_full_family conf base ip ifam add_children =
   let baseprefix = conf.command in
   let index = Int32.of_int (Adef.int_of_ifam ifam) in
-  let fam = foi base ifam in
+  let fam = Util.fget conf base ifam in
   let ifath = get_father fam in
   let imoth = get_mother fam in
-  let m_auth =
-    Util.authorized_age conf base (poi base ifath) &&
-    Util.authorized_age conf base (poi base imoth)
-  in
   let ifath = Int32.of_int (Adef.int_of_iper ifath) in
   let imoth = Int32.of_int (Adef.int_of_iper imoth) in
   let gen_f = Util.string_gen_family base (gen_family_of_family fam) in
-  let marriage =
-    match (m_auth, Adef.od_of_cdate gen_f.marriage) with
-    | (true, Some d) -> Some (piqi_date_of_date d)
-    | _ -> None
-  in
-  let marriage_place =
-    if m_auth && gen_f.marriage_place <> "" then Some gen_f.marriage_place
-    else None
-  in
+  let marriage = Opt.map piqi_date_of_date (Adef.od_of_cdate gen_f.marriage) in
+  let marriage_place = Opt.of_string gen_f.marriage_place in
   let marriage_type =
     match gen_f.relation with
     | Married -> `married
@@ -358,23 +260,20 @@ let fam_to_piqi_full_family conf base ip ifam add_children =
     match gen_f.divorce with
     | NotDivorced -> (`not_divorced, None)
     | Divorced cod ->
-        (match Adef.od_of_cdate cod with
-         | Some d when m_auth ->
-             let divorce_date = Some (piqi_date_of_date d) in
-             (`divorced, divorce_date)
-         | _ -> (`divorced, None))
+      (`divorced, Opt.map piqi_date_of_date (Adef.od_of_cdate cod))
     | Separated -> (`separated, None)
   in
   let children =
     if add_children then
-      List.map
+      Array.to_list @@
+      Array.map
         (fun ip ->
           let ip = Int32.of_int (Adef.int_of_iper ip) in
           MLink.Person_link.({
             baseprefix = baseprefix;
             ip = ip;
           }))
-        (Array.to_list (get_children fam))
+        (get_children fam)
     else
       let pl =
         let ip = Int32.of_int (Adef.int_of_iper ip) in
@@ -408,17 +307,15 @@ let get_families_asc conf base ip nb_asc =
     | (ip, gen) :: parents ->
     if gen = nb_asc then loop_asc parents families
     else
-      let p = poi base ip in
-      if Util.authorized_age conf base p
-      then match get_parents p with
-        | Some ifam ->
-          let cpl = foi base ifam in
-          let ifath = get_father cpl in
-          let imoth = get_mother cpl in
-          loop_asc ((ifath, gen + 1) :: (imoth, gen + 1) :: parents)
-            ((ip, ifam, gen) :: families)
-        | None -> loop_asc parents families
-      else loop_asc parents families
+      let p = Util.pget conf base ip in
+      match get_parents p with
+      | Some ifam ->
+        let cpl = foi base ifam in
+        let ifath = get_father cpl in
+        let imoth = get_mother cpl in
+        loop_asc ((ifath, gen + 1) :: (imoth, gen + 1) :: parents)
+          ((ip, ifam, gen) :: families)
+      | None -> loop_asc parents families
   in
   loop_asc [(ip, 0)] []
 
@@ -431,17 +328,15 @@ let get_families_desc conf base ip ip_spouse from_gen_desc nb_desc =
       | (ip, gen) :: pl ->
           if gen = from_gen_desc then loop_asc pl accu
           else
-            let p = poi base ip in
-            if Util.authorized_age conf base p
-            then match get_parents (poi base ip) with
-              | Some ifam ->
-                let cpl = foi base ifam in
-                let ifath = get_father cpl in
-                let imoth = get_mother cpl in
-                loop_asc ((ifath, gen + 1) :: (imoth, gen + 1) :: pl)
+            let p = Util.pget conf base ip in
+            match get_parents p with
+            | Some ifam ->
+              let cpl = foi base ifam in
+              let ifath = get_father cpl in
+              let imoth = get_mother cpl in
+              loop_asc ((ifath, gen + 1) :: (imoth, gen + 1) :: pl)
                     ((ip, gen) :: accu)
-              | None -> loop_asc pl accu
-            else loop_asc pl accu
+            | None -> loop_asc pl accu
     in
     (* Récupère les ascendants jusqu'au nombre de générations from_gen_desc. *)
     (* Utile pour le template affichant les parents des conjoints. *)
@@ -455,19 +350,17 @@ let get_families_desc conf base ip ip_spouse from_gen_desc nb_desc =
       match pl with
       | [] -> accu (* Retourne accu lorsqu'il n'y a plus rien à parcourir. *)
       | (ip, gen) :: pl ->
-        let p = poi base ip in
-        if Util.authorized_age conf base p
-        then
-          let fam = Array.to_list (get_family p) in
-          let fam =
-            if gen = 0 && ip_spouse <> Adef.iper_of_int (-1) then
-              List.filter
-                (fun ifam ->
-                  let fam = foi base ifam in
-                  let isp = Gutil.spouse ip fam in
-                  isp = ip_spouse)
-                fam
-            else fam
+        let p = Util.pget conf base ip in
+        let fam = Array.to_list (get_family p) in
+        let fam =
+          if gen = 0 && ip_spouse <> Adef.iper_of_int (-1) then
+            List.filter
+              (fun ifam ->
+                 let fam = foi base ifam in
+                 let isp = Gutil.spouse ip fam in
+                 isp = ip_spouse)
+              fam
+          else fam
           in
           let accu =
             (* Si la génération est inférieure à celle demandée, les données ne sont pas retournées. *)
@@ -481,14 +374,13 @@ let get_families_desc conf base ip ip_spouse from_gen_desc nb_desc =
             List.fold_left
               (fun pl ifam ->
                 let fam = foi base ifam in
-                List.fold_left
+                Array.fold_left
                   (* Ne récupère pas les descendants si la génération suivante est inférieure à celle demandée. *)
                   (fun pl ic -> if gen - 1 <= -nb_desc then pl else (ic, gen - 1) :: pl)
-                  pl (Array.to_list (get_children fam)))
+                  pl (get_children fam))
               pl fam
           in
           loop_desc pl accu
-        else loop_desc pl accu
     in
     loop_desc ipl []
 
@@ -584,60 +476,28 @@ let print_link_tree conf base =
   let nb_asc = Int32.to_int params.MLink.Link_tree_params.nb_asc in
   let from_gen_desc = Int32.to_int params.MLink.Link_tree_params.from_gen_desc in
   let nb_desc = Int32.to_int params.MLink.Link_tree_params.nb_desc in
-
   (* Gestion de l'inclusion des not validated. *)
   let include_not_validated =
     let h_include_not_validated = Wserver.extract_param "inter-tree-links-include-not-validated: " '\r' conf.request in
     if h_include_not_validated = "1" then true else false
   in
-
   let redis = create_redis_connection () in
-
   let ip_local =
     match ref_person with
     | Some s ->
-        begin
-          match Link.ip_of_ref_person base s with
-          | Some ip -> ip
-          | None -> Adef.iper_of_int (-1)
-        end
+      Opt.default (Adef.iper_of_int (-1)) (Link.ip_of_ref_person base s)
     | None ->
-        match ip with
-        | Some ip -> Adef.iper_of_int (Int32.to_int ip)
-        | None -> Adef.iper_of_int (-1)
+      Opt.map_default (Adef.iper_of_int (-1)) (fun x -> Adef.iper_of_int (Int32.to_int x)) ip
   in
-
   let ip_distant =
-    match ip with
-    | Some ip -> Adef.iper_of_int (Int32.to_int ip)
-    | None -> Adef.iper_of_int (-1)
+    Opt.map_default (Adef.iper_of_int (-1)) (fun x -> Adef.iper_of_int (Int32.to_int x)) ip
   in
-
   let ip_local_spouse =
     match ref_person2 with
     | Some s when s <> "" ->
-        begin
-          match Link.ip_of_ref_person base s with
-          | Some ip -> ip
-          | None -> Adef.iper_of_int (-1)
-        end
+      Opt.default (Adef.iper_of_int (-1)) (Link.ip_of_ref_person base s)
     | _ -> Adef.iper_of_int (-1)
   in
-
-  (* On rend unique tous les résultats. *)
-  let _uniq l =
-    let ht = Hashtbl.create 101 in
-    List.fold_left
-      (fun accu l ->
-         List.fold_left
-           (fun accu x ->
-              let h = Hashtbl.hash x in
-              if Hashtbl.mem ht h then accu
-              else (Hashtbl.add ht h (); x :: accu))
-           accu l)
-      [] l
-  in
-
   (* La liste de toutes les personnes à renvoyer. *)
   let pl =
     get_families_desc conf base ip_local ip_local_spouse from_gen_desc nb_desc
@@ -651,7 +511,6 @@ let print_link_tree conf base =
          (Hashtbl.add ht (ip, ifam, gen) (); true))
       pl
   in
-
   (* Familles ascendantes locales. *)
   let local_asc_fam =
     if conf.bname <> basename &&
@@ -666,7 +525,6 @@ let print_link_tree conf base =
         families
     else []
   in
-
   (* Familles descendantes locales. *)
   let local_desc_fam =
     if conf.bname <> basename &&
@@ -678,10 +536,8 @@ let print_link_tree conf base =
         pl
     else []
   in
-
   (* Familles locales. *)
   let local_families = local_asc_fam @ local_desc_fam in
-
   (* Personnes locales issues des familles asc et desc. *)
   let local_persons =
     let ht = Hashtbl.create 101 in
@@ -729,7 +585,6 @@ let print_link_tree conf base =
            accu fam.MLink.Family.children)
       [] local_families
   in
-
   (* Correspondances locales. *)
   (* On constitue la liste de toutes les personnes, *)
   (* puis on ira chercher les correspondances.      *)
@@ -767,7 +622,6 @@ let print_link_tree conf base =
            accu (Array.to_list (get_children fam)))
       [] pl
   in
-
   let local_connections =
     List.fold_left
       (fun accu p ->
@@ -800,7 +654,6 @@ let print_link_tree conf base =
           accu bl)
       [] all_persons
   in
-
   (* Descendance distante. *)
   let distant_desc_fam =
     let pl =
@@ -860,7 +713,6 @@ let print_link_tree conf base =
            end)
       ([], [], []) pl
   in
-
   (* Ascendance distante. *)
   let distant_asc_fam =
     if nb_asc > 0 && ip_local <> Adef.iper_of_int (-1) then
@@ -870,7 +722,7 @@ let print_link_tree conf base =
         | (ip, gen) :: parents ->
             if gen = nb_asc then loop parents persons
             else
-            match get_parents (poi base ip) with
+            match get_parents (Util.pget conf base ip) with
             | Some ifam ->
                 let cpl = foi base ifam in
                 let ifath = get_father cpl in
@@ -920,14 +772,11 @@ let print_link_tree conf base =
         ([], [], []) persons
     else ([], [], [])
   in
-
   let (distant_asc_fam, distant_asc_pers, distant_asc_conn) = distant_asc_fam in
   let (distant_desc_fam, distant_desc_pers, distant_desc_conn) = distant_desc_fam in
-
   let families = local_families @ distant_asc_fam @ distant_desc_fam in
   let persons = local_persons @ distant_asc_pers @ distant_desc_pers in
   let connections = local_connections @ distant_asc_conn @ distant_desc_conn in
-
   let data =
     MLink.Link_tree.({
       families = families;

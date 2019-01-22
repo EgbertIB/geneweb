@@ -388,8 +388,4 @@ let input_lexicon lang ht open_fname =
   with Sys_error _ -> ()
 
 let array_to_list_map fn a =
-  let rec loop acc i =
-    if i < 0 then acc
-    else loop (fn (Array.unsafe_get a i) :: acc) (i - 1)
-  in
-  loop [] (Array.length a - 1)
+  Array.fold_right (fun x acc -> fn x :: acc) a []

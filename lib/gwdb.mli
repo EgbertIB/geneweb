@@ -24,6 +24,7 @@ val eq_istr : istr -> istr -> bool
 val is_empty_string : istr -> bool
 val is_quest_string : istr -> bool
 val empty_person : base -> iper -> person
+val empty_family : base -> ifam -> family
 
 val get_access : person -> Def.access
 val get_aliases : person -> istr list
@@ -67,7 +68,10 @@ val get_consang : person -> Adef.fix
 val get_family : person -> ifam array
 
 val gen_person_of_person : person -> (iper, istr) Def.gen_person
+val gen_ascend_of_ascend : person -> ifam Def.gen_ascend
+val gen_union_of_union : person -> ifam Def.gen_union
 
+val get_ifam : family -> ifam
 val get_comment : family -> istr
 val get_divorce : family -> Def.divorce
 val get_fevents : family -> fam_event list
@@ -89,6 +93,9 @@ val get_children : family -> iper array
 val gen_family_of_family : family -> (iper, istr) Def.gen_family
 val gen_couple_of_couple : family -> iper Def.gen_couple
 val gen_descend_of_descend : family -> iper Def.gen_descend
+
+val no_ascend : ifam Def.gen_ascend
+val no_union : ifam Def.gen_union
 
 val person_of_gen_person :
   base ->

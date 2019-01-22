@@ -1,12 +1,8 @@
-(* $Id: util.ml,v 5.130 2007-09-12 09:58:44 ddr Exp $ *)
 (* Copyright (c) 1998-2007 INRIA *)
 
 open Config
 open Def
 open Gwdb
-
-let is_hide_names conf p =
-  if conf.hide_names || get_access p = Private then true else false
 
 let sharelib =
   List.fold_right Filename.concat [Gwlib.prefix; "share"] "geneweb"
@@ -70,7 +66,6 @@ let amp_capitalize capitale s =
           (Char.chr (Char.code s.[1] - Char.code 'a' + Char.code 'A')) ^
         String.sub s 2 (String.length s - 2)
     | _ -> s
-
 
 (* Copied from Ocaml < 4.03. To be removed with proper utf8 support *)
 let uppercase c =
@@ -609,20 +604,62 @@ let authorized_age conf base p =
         (Adef.od_of_cdate (get_birth p))
   end
 
+let is_restricted_aux conf base p =
+  not (is_quest_string (get_surname p))
+  && not (is_quest_string (get_first_name p))
+  && not (authorized_age conf base p)
+
 let is_restricted (conf : config) base ip =
-  let fct p =
-    not (is_quest_string (get_surname p)) &&
-    not (is_quest_string (get_first_name p)) &&
-    not (authorized_age conf base p)
-  in
-  if conf.use_restrict then base_visible_get base fct (Adef.int_of_iper ip)
+  if conf.use_restrict
+  then base_visible_get base (is_restricted_aux conf base) (Adef.int_of_iper ip)
   else false
 
-let pget (conf : config) base ip =
-  if is_restricted conf base ip then Gwdb.empty_person base ip
-  else poi base ip
+(* TODO: removed this from interface. Use foi only when you know what you are doing, and use pget otherwise. *)
+let is_hide_names conf p =
+  if conf.hide_names || get_access p = Private then true else false
 
-let string_gen_person base p = Futil.map_person_ps (fun p -> p) (sou base) p
+(* TODO: Make this the default way to access a person (and do the same with fget). *)
+let pget (conf : config) base ip =
+  let dummy_iper = Adef.iper_of_int (-1) in
+  if ip = dummy_iper then Gwdb.empty_person base dummy_iper
+  else if conf.use_restrict
+  then
+    if base_visible_get base (is_restricted_aux conf base) (Adef.int_of_iper ip)
+    then Gwdb.empty_person base dummy_iper
+    else poi base ip
+  else
+    let p = poi base ip in
+    if is_restricted_aux conf base p
+    then
+      if conf.hide_names || get_access p = Private
+      then Gwdb.empty_person base dummy_iper
+      else
+        (* FIXME: avoid useless convertion *)
+        Gwdb.person_of_gen_person base
+          ( { (Gwdb.empty_person base ip |> Gwdb.gen_person_of_person)
+              with first_name = (Gwdb.get_first_name p)
+                 ; surname = (Gwdb.get_surname p) }
+          , Gwdb.gen_ascend_of_ascend p
+          , Gwdb.gen_union_of_union p)
+    else p
+
+let fget conf base ifam =
+  let fam = foi base ifam in
+  if conf.use_restrict
+  then
+    if base_visible_get base (is_restricted_aux conf base) (Adef.int_of_iper @@ get_father fam)
+    || base_visible_get base (is_restricted_aux conf base) (Adef.int_of_iper @@ get_mother fam)
+    then Gwdb.empty_family base @@ Adef.ifam_of_int (-1)
+    else fam
+  else
+    let fam = foi base ifam in
+    if is_restricted_aux conf base (poi base @@ get_father fam)
+    || is_restricted_aux conf base (poi base @@ get_mother fam)
+    then Gwdb.empty_family base @@ Adef.ifam_of_int (-1)
+    else fam
+
+let string_gen_person base p =
+  Futil.map_person_ps (fun p -> p) (sou base) p
 
 let string_gen_family base fam =
   Futil.map_family_ps (fun p -> p) (sou base) fam
@@ -2363,34 +2400,18 @@ let limited_image_size max_wid max_hei fname size =
   | None -> None
 
 let find_person_in_env conf base suff =
+  let return p = if is_hidden p then None else Some p in
   match p_getint conf.env ("i" ^ suff) with
-    Some i ->
-      if i >= 0 && i < nb_of_persons base then
-        let p = pget conf base (Adef.iper_of_int i) in
-        if is_hidden p then None else Some p
-      else None
+  | Some i -> return (pget conf base (Adef.iper_of_int i))
   | None ->
-      match
-        p_getenv conf.env ("p" ^ suff), p_getenv conf.env ("n" ^ suff)
-      with
-        Some p, Some n ->
-          let occ =
-            match p_getint conf.env ("oc" ^ suff) with
-              Some oc -> oc
-            | None -> 0
-          in
-          begin match person_of_key base p n occ with
-            Some ip ->
-              let p = pget conf base ip in
-              if is_hidden p then None
-              else if
-                not (is_hide_names conf p) || authorized_age conf base p
-              then
-                Some p
-              else None
-          | None -> None
-          end
-      | _ -> None
+    match p_getenv conf.env ("p" ^ suff), p_getenv conf.env ("n" ^ suff) with
+    | Some p, Some n ->
+      let occ = Opt.default 0 (p_getint conf.env ("oc" ^ suff)) in
+      begin match person_of_key base p n occ with
+        | Some ip -> return (pget conf base ip)
+        | None -> None
+      end
+    | _ -> None
 
 let person_exists conf base (fn, sn, oc) =
   match p_getenv conf.base_env "red_if_not_exist" with
