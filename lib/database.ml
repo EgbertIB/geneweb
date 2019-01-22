@@ -471,7 +471,7 @@ let array_ext phony fa =
       end
     else failwith "this is a GeneWeb base, but not compatible; please upgrade"
 
-let make_record_access ic ic_acc shift array_pos (plenr, patches) len name
+let make_record_access bname ic ic_acc shift array_pos (plenr, patches) len name
     input_array input_item =
   let v_ext v =
     if name = "persons" then ext phony_person v
@@ -493,7 +493,7 @@ let make_record_access ic ic_acc shift array_pos (plenr, patches) len name
           Not_found ->
             if i < 0 || i >= len then
               failwith
-                ("access " ^ name ^ " out of bounds; i = " ^ string_of_int i)
+                ("access " ^ bname ^ "." ^ name ^ " out of bounds; i = " ^ string_of_int i)
             else
               match ic_acc with
                 Some ic_acc ->
@@ -662,43 +662,43 @@ let opendb bname =
   in
   let shift = 0 in
   let persons =
-    make_record_access ic ic_acc shift persons_array_pos patches.h_person
+    make_record_access bname ic ic_acc shift persons_array_pos patches.h_person
       persons_len "persons" (input_value : _ -> person array)
       (Iovalue.input : _ -> person)
   in
   let shift = shift + persons_len * Iovalue.sizeof_long in
   let ascends =
-    make_record_access ic ic_acc shift ascends_array_pos patches.h_ascend
+    make_record_access bname ic ic_acc shift ascends_array_pos patches.h_ascend
       persons_len "ascends" (input_value : _ -> ascend array)
       (Iovalue.input : _ -> ascend)
   in
   let shift = shift + persons_len * Iovalue.sizeof_long in
   let unions =
-    make_record_access ic ic_acc shift unions_array_pos patches.h_union
+    make_record_access bname ic ic_acc shift unions_array_pos patches.h_union
       persons_len "unions" (input_value : _ -> union array)
       (Iovalue.input : _ -> union)
   in
   let shift = shift + persons_len * Iovalue.sizeof_long in
   let families =
-    make_record_access ic ic_acc shift families_array_pos patches.h_family
+    make_record_access bname ic ic_acc shift families_array_pos patches.h_family
       families_len "families" (input_value : _ -> family array)
       (Iovalue.input : _ -> family)
   in
   let shift = shift + families_len * Iovalue.sizeof_long in
   let couples =
-    make_record_access ic ic_acc shift couples_array_pos patches.h_couple
+    make_record_access bname ic ic_acc shift couples_array_pos patches.h_couple
       families_len "couples" (input_value : _ -> couple array)
       (Iovalue.input : _ -> couple)
   in
   let shift = shift + families_len * Iovalue.sizeof_long in
   let descends =
-    make_record_access ic ic_acc shift descends_array_pos patches.h_descend
+    make_record_access bname ic ic_acc shift descends_array_pos patches.h_descend
       families_len "descends" (input_value : _ -> descend array)
       (Iovalue.input : _ -> descend)
   in
   let shift = shift + families_len * Iovalue.sizeof_long in
   let strings =
-    make_record_access ic ic_acc shift strings_array_pos patches.h_string
+    make_record_access bname ic ic_acc shift strings_array_pos patches.h_string
       strings_len "strings" (input_value : _ -> string array)
       (Iovalue.input : _ -> string)
   in

@@ -1479,7 +1479,9 @@ let defaultHandler : handler =
     end
 
   ; api_link_tree = begin fun _self conf base ->
-      Api_link.print_link_tree conf base
+      Log.with_log (fun oc -> Printf.fprintf oc "%d: %s: %s\n" (Unix.getpid ()) __LOC__ conf.bname);
+      Api_link.print_link_tree conf base ;
+      Log.with_log (fun oc -> Printf.fprintf oc "%d: %s: %s\n" (Unix.getpid ()) __LOC__ conf.bname);
     end
 
   ; api_stats = begin fun _self conf base ->

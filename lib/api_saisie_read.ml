@@ -386,6 +386,52 @@ let event_to_piqi_event pevt_name fevt_name =
   | Some _ -> `efam_custom
   | None -> failwith "event_to_piqi_event"
 
+let fill_sex p =
+  match get_sex p with
+  | Male -> `male
+  | Female -> `female
+  | Neuter -> `unknown
+
+let fill_sosa_aux sosa_nb =
+  if Sosa.eq sosa_nb Sosa.zero then `no_sosa
+  else if Sosa.eq sosa_nb Sosa.one then `sosa_ref
+  else `sosa
+
+let fill_sosa p =
+  fill_sosa_aux (Perso.get_sosa_person p)
+
+let fill_sn base p = Name.lower (sou base (get_surname p))
+
+let fill_fn base p = Name.lower (sou base (get_first_name p))
+
+let fill_occ p = Int32.of_int (get_occ p)
+
+let fill_surname gen_p = gen_p.surname
+
+let fill_firstname gen_p = gen_p.first_name
+
+let fill_publicname gen_p =
+  Opt.of_string gen_p.public_name
+
+let fill_aliases gen_p = gen_p.aliases
+
+let fill_qualifiers gen_p = gen_p.qualifiers
+
+let fill_firstname_aliases gen_p = gen_p.first_names_aliases
+
+let fill_surname_aliases gen_p = gen_p.surnames_aliases
+
+let fill_image conf base p =
+  if has_image conf base p then
+    let img = sou base (get_image p) in
+    if img <> "" then Some img
+    else if Api_util.find_image_file conf base p <> None
+    then Some "1"
+    else None
+  else None
+
+let fill_index p = Int32.of_int (Adef.int_of_iper (get_key_index p))
+
 (* ************************************************************************** *)
 (*  [Fonc] pers_to_piqi_person_tree :
             config -> base -> person -> string -> PersonTree                  *)
@@ -400,60 +446,18 @@ let event_to_piqi_event pevt_name fevt_name =
     [Rem] : Non exporté en clair hors de ce module.                           *)
 (* ************************************************************************** *)
 let pers_to_piqi_person_tree conf base p more_info gen max_gen base_prefix =
-  if is_restricted conf base (get_key_index p) then
-    {
-      Mread.Person_tree.index = Int32.of_int (-1);
-      sex = `unknown;
-      lastname = "x";
-      firstname = "x";
-      n = "";
-      p = "";
-      occ = Int32.of_int 0;
-      dates = None;
-      image = None;
-      sosa = `no_sosa;
-      has_more_infos = false;
-      baseprefix = "";
-    }
-  else
-    let p_auth = authorized_age conf base p in
-    let index = Int32.of_int (Adef.int_of_iper (get_key_index p)) in
-    let sex =
-      match get_sex p with
-      | Male -> `male
-      | Female -> `female
-      | Neuter -> `unknown
-    in
+    let index = fill_index p in
+    let sex = fill_sex p in
     let sosa =
       if conf.bname <> Link.chop_base_prefix base_prefix then `no_sosa
-      else
-        let sosa_nb = Perso.get_sosa_person p in
-        if Sosa.eq sosa_nb Sosa.zero then `no_sosa
-        else if Sosa.eq sosa_nb Sosa.one then `sosa_ref
-        else `sosa
+      else fill_sosa p
     in
-    let sn =
-      if (is_hide_names conf p) && not p_auth then ""
-      else Name.lower (sou base (get_surname p))
-    in
-    let fn =
-      if (is_hide_names conf p) && not p_auth then ""
-      else Name.lower (sou base (get_first_name p))
-    in
-    let occ = Int32.of_int (get_occ p) in
-    let (first_name, surname) =
-      if not p_auth && (is_hide_names conf p) then ("x", "x")
-      else person_firstname_surname_txt base p
-    in
+    let sn = fill_sn base p in
+    let fn = fill_fn base p in
+    let occ = fill_occ p in
+    let (first_name, surname) = person_firstname_surname_txt base p in
     let dates = short_dates_text conf base p in
-    let image =
-      if has_image conf base p then
-        let img = sou base (get_image p) in
-        if img <> "" then img
-        else if Api_util.find_image_file conf base p <> None
-        then "1" else ""
-      else ""
-    in
+    let image = fill_image conf base p in
     let has_more_infos =
       match more_info with
       | Root -> false
@@ -476,7 +480,7 @@ let pers_to_piqi_person_tree conf base p more_info gen max_gen base_prefix =
            (fst (List.fold_left
                    (fun (children_or_spouses, nb_fam) ifam ->
                      let nb_fam = succ nb_fam in
-                     let fam = foi base ifam in
+                     let fam = fget conf base ifam in
                      let children = get_children fam in
                      (children_or_spouses || (gen > 1 && Array.length children > 1) || nb_fam > 1,
                       nb_fam))
@@ -493,201 +497,84 @@ let pers_to_piqi_person_tree conf base p more_info gen max_gen base_prefix =
       p = fn;
       occ = occ;
       dates = if dates = "" then None else Some dates;
-      image = if image = "" then None else Some image;
+      image = image;
       sosa = sosa;
       has_more_infos = has_more_infos;
       baseprefix = base_prefix
     }
 
-(* Common functions to build a SimplePerson or a FichePerson. *)
-let get_restricted_person () =
-  let restricted_person = Mread.default_person () in
-  restricted_person.Mread.Person.index <- Int32.of_int (-1);
-  restricted_person.Mread.Person.lastname <- "x";
-  restricted_person.Mread.Person.firstname <- "x";
-  restricted_person
-
-let fill_sex p =
-      match get_sex p with
-      | Male -> `male
-      | Female -> `female
-      | Neuter -> `unknown
-
-let fill_sosa p =
-  let sosa_nb = Perso.get_sosa_person p in
-  if Sosa.eq sosa_nb Sosa.zero then `no_sosa
-  else if Sosa.eq sosa_nb Sosa.one then `sosa_ref
-  else `sosa
-
-let fill_sn conf base p p_auth =
-  if (is_hide_names conf p) && not p_auth then ""
-  else Name.lower (sou base (get_surname p))
-
-let fill_fn conf base p p_auth =
-  if (is_hide_names conf p) && not p_auth then ""
-  else Name.lower (sou base (get_first_name p))
-
-let fill_occ p =
-  Int32.of_int (get_occ p)
-
-let fill_surname conf p p_auth gen_p =
-  if not p_auth && (is_hide_names conf p) then "x" else gen_p.surname
-
-let fill_firstname conf p p_auth gen_p =
-  if not p_auth && (is_hide_names conf p) then "x" else gen_p.first_name
-
-let fill_publicname p_auth gen_p =
-  let publicname = if not p_auth then "" else gen_p.public_name in
-  if publicname = "" then None else Some publicname
-
-let fill_aliases p_auth gen_p =
-  if not p_auth then [] else gen_p.aliases
-
-let fill_qualifiers p_auth gen_p =
-  if not p_auth then [] else gen_p.qualifiers
-
-let fill_firstname_aliases p_auth gen_p =
-  if not p_auth then [] else gen_p.first_names_aliases
-
-let fill_surname_aliases p_auth gen_p =
-  if not p_auth then [] else gen_p.surnames_aliases
-
-(* ************************************************************************** *)
-(*  [Fonc] pers_to_piqi_simple_person :
-             config -> base -> person -> string -> SimplePerson               *)
-(** [Description] : Retourne à partir d'une person (gwdb) une SimplePerson
-                    (piqi).
-    [Args] :
-      - conf        : configuration de la base
-      - base        : base de donnée
-      - p           : person
-      - base_prefix : nom de l'arbre (différent de base dans le cas des LIA)
-    [Retour] :
-      - Person : Retourne une personne dont tous les champs sont complétés.
-    [Rem] : Non exporté en clair hors de ce module.                           *)
-(* ************************************************************************** *)
 let pers_to_piqi_simple_person conf base p base_prefix =
-  if is_restricted conf base (get_key_index p) then
-    let restricted_person = Mread.default_simple_person() in
-    restricted_person.Mread.Simple_person.index <- Int32.of_int (-1);
-    restricted_person.Mread.Simple_person.lastname <- "x";
-    restricted_person.Mread.Simple_person.firstname <- "x";
-    restricted_person.Mread.Simple_person.visible_for_visitors <- false;
-    restricted_person
-  else
-    let p_auth = authorized_age conf base p in
-    let index = Int32.of_int (Adef.int_of_iper (get_key_index p)) in
-    let visible_for_visitors = is_visible conf base p in
-    let sex =
-      match get_sex p with
-      | Male -> `male
-      | Female -> `female
-      | Neuter -> `unknown
+  let index = fill_index p in
+  let visible_for_visitors = is_visible conf base p in
+  let sex = fill_sex p in
+  let sosa_nb_num = Perso.get_sosa_person p in
+  let sosa = fill_sosa_aux sosa_nb_num in
+  let sosa_nb =
+    if sosa_nb_num = Sosa.zero
+    then None
+    else Some (Sosa.to_string sosa_nb_num)
+  in
+  let sn = fill_sn base p in
+  let fn = fill_fn base p in
+  let occ = Int32.of_int (get_occ p) in
+  let (birth_short, birth_raw, birth_place, death_short, death_raw, death_place) =
+    let (birth_date, death_date, _) = Date.get_birth_death_date p in
+    let birth = Opt.map (Date.string_slash_of_date conf) birth_date in
+    let birth_raw = Opt.map (string_of_date_raw conf) birth_date in
+    let birth_place =
+      let birth_place = sou base (get_birth_place p) in
+      if birth_place <> "" then Util.string_of_place conf birth_place
+      else
+        let baptism_place = sou base (get_baptism_place p) in
+        Util.string_of_place conf baptism_place
     in
-    let sosa_nb_num = Perso.get_sosa_person p in
-    let sosa =
-      if Sosa.eq sosa_nb_num Sosa.zero then `no_sosa
-      else if Sosa.eq sosa_nb_num Sosa.one then `sosa_ref
-      else `sosa
+    let death = Opt.map (Date.string_slash_of_date conf) death_date  in
+    let death_raw = Opt.map (string_of_date_raw conf) death_date in
+    let death_place =
+      let death_place = sou base (get_death_place p) in
+      if death_place <> "" then Util.string_of_place conf death_place
+      else
+        let burial_place = sou base (get_burial_place p) in
+        Util.string_of_place conf burial_place
     in
-    let sosa_nb =
-        if sosa_nb_num = Sosa.zero
-        then None
-        else Some (Sosa.to_string sosa_nb_num)
-    in
-    let sn =
-      if (is_hide_names conf p) && not p_auth then ""
-      else Name.lower (sou base (get_surname p))
-    in
-    let fn =
-      if (is_hide_names conf p) && not p_auth then ""
-      else Name.lower (sou base (get_first_name p))
-    in
-    let occ = Int32.of_int (get_occ p) in
-    let (birth_short, birth_raw, birth_place, death_short, death_raw, death_place) =
-      if p_auth then
-        let (birth_date, death_date, _) = Date.get_birth_death_date p in
-        let birth =
-          match birth_date with
-          | Some d -> Date.string_slash_of_date conf d
-          | None -> ""
-        in
-        let birth_raw =
-          match birth_date with
-          | Some d -> (string_of_date_raw conf d)
-          | None -> ""
-        in
-        let birth_place =
-          let birth_place = sou base (get_birth_place p) in
-          if birth_place <> "" then Util.string_of_place conf birth_place
-          else
-            let baptism_place = sou base (get_baptism_place p) in
-            Util.string_of_place conf baptism_place
-        in
-        let death =
-          match death_date with
-          | Some d -> Date.string_slash_of_date conf d
-          | None -> ""
-        in
-        let death_raw =
-          match death_date with
-          | Some d -> string_of_date_raw conf d
-          | None -> ""
-        in
-        let death_place =
-          let death_place = sou base (get_death_place p) in
-          if death_place <> "" then Util.string_of_place conf death_place
-          else
-            let burial_place = sou base (get_burial_place p) in
-            Util.string_of_place conf burial_place
-        in
-        (birth, birth_raw, birth_place, death, death_raw, death_place)
-      else ("", "", "", "", "", "")
-    in
-    let image =
-      if has_image conf base p then
-        let img = sou base (get_image p) in
-        if img <> "" then img
-        else if Api_util.find_image_file conf base p <> None
-        then "1"
-        else ""
-      else ""
-    in
-    let has_parent = get_parents p <> None in
-    let has_spouse = Array.length (get_family p) >= 1 in
-    let has_child =
+    (birth, birth_raw, birth_place, death, death_raw, death_place)
+  in
+  let image = fill_image conf base p in
+  let has_parent = get_parents p <> None in
+  let has_spouse = Array.length (get_family p) >= 1 in
+  let has_child =
     (Array.fold_left
-        (fun has_children ifam ->
-          let fam = foi base ifam in
+       (fun has_children ifam ->
+          let fam = fget conf base ifam in
           let children = get_children fam in
           (has_children || Array.length children >= 1))
-        false (get_family p))
-    in
-    let gen_p = Util.string_gen_person base (gen_person_of_person p)
-    in
-    {
-      Mread.Simple_person.index = index;
-      sex = sex;
-      lastname = fill_surname conf p p_auth gen_p;
-      firstname = fill_firstname conf p p_auth gen_p;
-      n = sn;
-      p = fn;
-      occ = occ;
-      birth_short_date = if birth_short = "" then None else Some birth_short;
-      birth_date_raw = if birth_raw = "" then None else Some birth_raw;
-      birth_place = if birth_place = "" then None else Some birth_place;
-      death_short_date = if death_short = "" then None else Some death_short;
-      death_date_raw = if death_raw = "" then None else Some death_raw;
-      death_place = if death_place = "" then None else Some death_place;
-      image = if image = "" then None else Some image;
-      sosa = sosa;
-      sosa_nb = sosa_nb;
-      visible_for_visitors = visible_for_visitors;
-      baseprefix = base_prefix;
-      has_parent = has_parent;
-      has_spouse = has_spouse;
-      has_child = has_child
-    }
+       false (get_family p))
+  in
+  let gen_p = Util.string_gen_person base (gen_person_of_person p)
+  in
+  {
+    Mread.Simple_person.index = index;
+    sex = sex;
+    lastname = gen_p.surname;
+    firstname = gen_p.surname;
+    n = sn;
+    p = fn;
+    occ = occ;
+    birth_short_date = birth_short;
+    birth_date_raw = birth_raw;
+    birth_place = Opt.of_string birth_place ;
+    death_short_date = death_short;
+    death_date_raw = death_raw;
+    death_place = Opt.of_string death_place ;
+    image = image;
+    sosa = sosa;
+    sosa_nb = sosa_nb;
+    visible_for_visitors = visible_for_visitors;
+    baseprefix = base_prefix;
+    has_parent = has_parent;
+    has_spouse = has_spouse;
+    has_child = has_child
+  }
 
 
 (* ********************************************************************* *)
@@ -705,22 +592,18 @@ let pers_to_piqi_simple_person conf base p base_prefix =
 let fam_to_piqi_family_link conf base ifath imoth sp ifam fam fam_link spouse_to_piqi_callback witness_to_piqi_callback child_to_piqi_callback family_link_constructor =
   let base_prefix = fam_link.MLink.Family.baseprefix in
   let spouse = spouse_to_piqi_callback conf base sp base_prefix in
-  let p_auth = true in
-  let m_auth = true in
   let gen_f = Util.string_gen_family base (gen_family_of_family fam) in
   let index = Int32.of_int (Adef.int_of_ifam gen_f.fam_index) in
   let (marriage_date, marriage_date_long, marriage_date_conv, marriage_date_conv_long, marriage_cal, marriage_date_raw) =
-    match (m_auth, Adef.od_of_cdate gen_f.marriage) with
-    | (true, Some d) ->
+    match Adef.od_of_cdate gen_f.marriage with
+    | Some d ->
       let (marriage_date, marriage_date_long, marriage_date_conv, marriage_date_conv_long, marriage_cal) = string_of_date_and_conv conf d in
       (marriage_date, marriage_date_long, marriage_date_conv, marriage_date_conv_long, marriage_cal, string_of_date_raw conf d)
     | _ -> ("", "", "", "", None, "")
   in
-  let marriage_date_text = Perso.get_marriage_date_text conf fam p_auth in
-  let marriage_place =
-    if m_auth then Util.string_of_place conf gen_f.marriage_place else ""
-  in
-  let marriage_src = if p_auth then gen_f.marriage_src else "" in
+  let marriage_date_text = Perso.get_marriage_date_text conf fam true in (* FIXME: true *)
+  let marriage_place = Util.string_of_place conf gen_f.marriage_place in
+  let marriage_src = gen_f.marriage_src in
   let marriage_type =
     match gen_f.relation with
     | Married -> `married
@@ -735,7 +618,7 @@ let fam_to_piqi_family_link conf base ifath imoth sp ifam fam fam_link spouse_to
     | NotDivorced -> (`not_divorced, "", "", "", "", None, "")
     | Divorced cod ->
         (match Adef.od_of_cdate cod with
-         | Some d when m_auth ->
+         | Some d ->
              let (divorce_date, divorce_date_long, divorce_date_conv, divorce_date_conv_long, divorce_cal) =
                string_of_date_and_conv conf d
              in
@@ -745,30 +628,28 @@ let fam_to_piqi_family_link conf base ifath imoth sp ifam fam fam_link spouse_to
   in
   let witnesses =
     Mutil.array_to_list_map
-      (fun ip -> witness_to_piqi_callback conf base (poi base ip) base_prefix)
+      (fun ip -> witness_to_piqi_callback conf base (Util.pget conf base ip) base_prefix)
       gen_f.witnesses
   in
   let notes =
-    if m_auth && not conf.no_note then
+    if not conf.no_note then
       let s = gen_f.comment in
       convert_wiki_notes_to_html_notes conf base [] s "\n"
     else ""
   in
   let fsources =
-    if m_auth then
-      let s = gen_f.fsources in
-      let s =
-        let wi =
-          {Api_wiki.wi_mode = "NOTES";
-           Api_wiki.wi_cancel_links = conf.cancel_links;
-           Api_wiki.wi_file_path = Notes.file_path conf base;
+    let s = gen_f.fsources in
+    let s =
+      let wi =
+        {Api_wiki.wi_mode = "NOTES";
+         Api_wiki.wi_cancel_links = conf.cancel_links;
+         Api_wiki.wi_file_path = Notes.file_path conf base;
            Api_wiki.wi_person_exists = person_exists conf base;
-           Api_wiki.wi_always_show_link = conf.wizard || conf.friend}
-        in
-        Api_wiki.syntax_links conf wi s
+         Api_wiki.wi_always_show_link = conf.wizard || conf.friend}
       in
-      string_with_macros conf [] s
-    else ""
+      Api_wiki.syntax_links conf wi s
+    in
+    string_with_macros conf [] s
   in
   let children =
     List.map
@@ -792,7 +673,7 @@ let fam_to_piqi_family_link conf base ifath imoth sp ifam fam fam_link spouse_to
       - base                  : database
       - p                     : the person
       - base_prefix           : the name of the base of the person
-      - p_auth                : private informations are returned
+      -                : private informations are returned
       - pers_to_piqi_callback : function to call to create the person object (spouse / witnesses)
       - witness_constructor   : function to call to create the witness object
       - event_constructor     : function to call to create the event object
@@ -800,73 +681,71 @@ let fam_to_piqi_family_link conf base ifath imoth sp ifam fam fam_link spouse_to
       - Array of events
                                                                          *)
 (* ********************************************************************* *)
-let fill_events conf base p base_prefix p_auth pers_to_piqi_callback witness_constructor event_constructor =
-  if p_auth then
-    List.map
-      (fun (name, date, place, note, src, w, isp) ->
-        let (name, type_) =
-          match name with
-          | Perso.Pevent name -> (Util.string_of_pevent_name conf base name, event_to_piqi_event (Some name) None)
-          | Perso.Fevent name -> (Util.string_of_fevent_name conf base name, event_to_piqi_event None (Some name))
-        in
-        let (date, date_long, date_conv, date_conv_long, date_cal, date_raw) =
-          match Adef.od_of_cdate date with
-          | Some d ->
-            let (date, date_long, date_conv, date_conv_long, date_cal) = string_of_date_and_conv conf d in
-            (date, date_long, date_conv, date_conv_long, date_cal, string_of_date_raw conf d)
-          | _ -> ("", "", "", "", None, "")
-        in
-        let place = Util.string_of_place conf (sou base place) in
-        let note =
-          if not conf.no_note then
-            begin
-              let env = [('i', fun () -> Util.default_image_name base p)] in
-              let s = sou base note in
-              convert_wiki_notes_to_html_notes conf base env s "\n"
-            end
-          else ""
-        in
-        let src =
-          let s = sou base src in
-          let env = [('i', fun () -> Util.default_image_name base p)] in
-          let s =
-            let wi =
-              {Api_wiki.wi_mode = "NOTES";
-               Api_wiki.wi_cancel_links = conf.cancel_links;
-               Api_wiki.wi_file_path = Notes.file_path conf base;
-               Api_wiki.wi_person_exists = person_exists conf base;
-               Api_wiki.wi_always_show_link = conf.wizard || conf.friend}
-            in
-            Api_wiki.syntax_links conf wi s
-          in
-          string_with_macros conf env s
-        in
-        let spouse =
-          Opt.map (fun ip -> pers_to_piqi_callback conf base (poi base ip) base_prefix) isp
-        in
-        let witnesses =
-          Mutil.array_to_list_map
-            (fun (ip, wk) ->
-               let witness_type =
-                 match wk with
-                 | Witness -> `witness
-                 | Witness_GodParent -> `witness_godparent
-               in
-               let witness = poi base ip in
-               let witness = pers_to_piqi_callback conf base witness base_prefix in
-               witness_constructor witness_type witness
-               )
-            w
-        in
-          event_constructor name type_ date date_long date_raw date_conv date_conv_long date_cal place note src spouse witnesses
-        )
-      (Perso.events_list conf base p)
-  else []
+let fill_events conf base p base_prefix pers_to_piqi_callback witness_constructor event_constructor =
+  List.map
+    (fun (name, date, place, note, src, w, isp) ->
+       let (name, type_) =
+         match name with
+         | Perso.Pevent name -> (Util.string_of_pevent_name conf base name, event_to_piqi_event (Some name) None)
+         | Perso.Fevent name -> (Util.string_of_fevent_name conf base name, event_to_piqi_event None (Some name))
+       in
+       let (date, date_long, date_conv, date_conv_long, date_cal, date_raw) =
+         match Adef.od_of_cdate date with
+         | Some d ->
+           let (date, date_long, date_conv, date_conv_long, date_cal) = string_of_date_and_conv conf d in
+           (date, date_long, date_conv, date_conv_long, date_cal, string_of_date_raw conf d)
+         | _ -> ("", "", "", "", None, "")
+       in
+       let place = Util.string_of_place conf (sou base place) in
+       let note =
+         if not conf.no_note then
+           begin
+             let env = [('i', fun () -> Util.default_image_name base p)] in
+             let s = sou base note in
+             convert_wiki_notes_to_html_notes conf base env s "\n"
+           end
+         else ""
+       in
+       let src =
+         let s = sou base src in
+         let env = [('i', fun () -> Util.default_image_name base p)] in
+         let s =
+           let wi =
+             {Api_wiki.wi_mode = "NOTES";
+              Api_wiki.wi_cancel_links = conf.cancel_links;
+              Api_wiki.wi_file_path = Notes.file_path conf base;
+              Api_wiki.wi_person_exists = person_exists conf base;
+              Api_wiki.wi_always_show_link = conf.wizard || conf.friend}
+           in
+           Api_wiki.syntax_links conf wi s
+         in
+         string_with_macros conf env s
+       in
+       let spouse =
+         Opt.map (fun ip -> pers_to_piqi_callback conf base (Util.pget conf base ip) base_prefix) isp
+       in
+       let witnesses =
+         Mutil.array_to_list_map
+           (fun (ip, wk) ->
+              let witness_type =
+                match wk with
+                | Witness -> `witness
+                | Witness_GodParent -> `witness_godparent
+              in
+              let witness = poi base ip in
+              let witness = pers_to_piqi_callback conf base witness base_prefix in
+              witness_constructor witness_type witness
+           )
+           w
+       in
+       event_constructor name type_ date date_long date_raw date_conv date_conv_long date_cal place note src spouse witnesses
+    )
+    (Perso.events_list conf base p)
 
 
-let fill_events_if_is_main_person conf base p base_prefix p_auth is_main_person pers_to_piqi_callback witness_constructor event_constructor =
+let fill_events_if_is_main_person conf base p base_prefix is_main_person pers_to_piqi_callback witness_constructor event_constructor =
   if is_main_person then
-    fill_events conf base p base_prefix p_auth pers_to_piqi_callback witness_constructor event_constructor
+    fill_events conf base p base_prefix pers_to_piqi_callback witness_constructor event_constructor
   else []
 
 (* ********************************************************************* *)
@@ -877,7 +756,7 @@ let fill_events_if_is_main_person conf base p base_prefix p_auth is_main_person 
       - base                  : database
       - p                     : the person
       - base_prefix           : the name of the base of the person
-      - p_auth                : private informations are returned
+      -                : private informations are returned
       - pers_to_piqi_callback : function to call to create the person object (spouse / witnesses)
       - witness_constructor   : function to call to create the witness object
       - event_constructor     : function to call to create the event object
@@ -950,7 +829,7 @@ let get_related_piqi conf base p base_prefix gen_p has_relations pers_to_piqi_ca
       - base                      : database
       - p                         : the person
       - base_prefix               : the name of the base of the person
-      - p_auth                    : private informations are returned
+      -                    : private informations are returned
       - pers_to_piqi_callback     : function to call to create a person object (spouse)
       - witness_constructor       : function to call to create a witness object
       - child_to_piqi_callback : function to call to create a child object
@@ -960,30 +839,22 @@ let get_related_piqi conf base p base_prefix gen_p has_relations pers_to_piqi_ca
                                                                          *)
 (* ********************************************************************* *)
 let get_family_piqi base conf ifam p base_prefix spouse_to_piqi_callback witnesses_to_piqi_callback child_to_piqi_callback family_constructor =
-  let fam = foi base ifam in
-  let sp = poi base (Gutil.spouse (get_key_index p) fam) in
+  let fam = fget conf base ifam in
+  let sp = pget conf base (Gutil.spouse (get_key_index p) fam) in
   let spouse = spouse_to_piqi_callback conf base sp base_prefix in
-  let ifath = get_father fam in
-  let imoth = get_mother fam in
-  let p_auth = authorized_age conf base p in
-  let m_auth =
-    authorized_age conf base (pget conf base ifath) &&
-    authorized_age conf base (pget conf base imoth)
-  in
   let gen_f = Util.string_gen_family base (gen_family_of_family fam) in
   let index = Int32.of_int (Adef.int_of_ifam gen_f.fam_index) in
   let (marriage_date, marriage_date_long, marriage_date_conv, marriage_date_conv_long, marriage_cal, marriage_date_raw) =
-    match (m_auth, Adef.od_of_cdate gen_f.marriage) with
-    | (true, Some d) ->
+    match Adef.od_of_cdate gen_f.marriage with
+    | Some d ->
       let (marriage_date, marriage_date_long, marriage_date_conv, marriage_date_conv_long, marriage_cal) = string_of_date_and_conv conf d in
       (marriage_date, marriage_date_long, marriage_date_conv, marriage_date_conv_long, marriage_cal, string_of_date_raw conf d)
     | _ -> ("", "", "", "", None, "")
   in
-  let marriage_date_text = Perso.get_marriage_date_text conf fam p_auth in
-  let marriage_place =
-    if m_auth then Util.string_of_place conf gen_f.marriage_place else ""
+  let marriage_date_text = Perso.get_marriage_date_text conf fam true in (* FIXME: true *)
+  let marriage_place = Util.string_of_place conf gen_f.marriage_place
   in
-  let marriage_src = if p_auth then gen_f.marriage_src else "" in
+  let marriage_src = gen_f.marriage_src in
   let marriage_type =
     match gen_f.relation with
     | Married -> `married
@@ -998,7 +869,7 @@ let get_family_piqi base conf ifam p base_prefix spouse_to_piqi_callback witness
     | NotDivorced -> (`not_divorced, "", "", "", "", None, "")
     | Divorced cod ->
         (match Adef.od_of_cdate cod with
-         | Some d when m_auth ->
+         | Some d ->
              let (divorce_date, divorce_date_long, divorce_date_conv, divorce_date_conv_long, divorce_cal) =
                string_of_date_and_conv conf d
              in
@@ -1012,26 +883,24 @@ let get_family_piqi base conf ifam p base_prefix spouse_to_piqi_callback witness
       gen_f.witnesses
   in
   let notes =
-    if m_auth && not conf.no_note then
+    if not conf.no_note then
       let s = gen_f.comment in
       convert_wiki_notes_to_html_notes conf base [] s "\n"
     else ""
   in
   let fsources =
-    if m_auth then
-      let s = gen_f.fsources in
-      let s =
-        let wi =
-          {Api_wiki.wi_mode = "NOTES";
-           Api_wiki.wi_cancel_links = conf.cancel_links;
-           Api_wiki.wi_file_path = Notes.file_path conf base;
-           Api_wiki.wi_person_exists = person_exists conf base;
-           Api_wiki.wi_always_show_link = conf.wizard || conf.friend}
-        in
-        Api_wiki.syntax_links conf wi s
+    let s = gen_f.fsources in
+    let s =
+      let wi =
+        {Api_wiki.wi_mode = "NOTES";
+         Api_wiki.wi_cancel_links = conf.cancel_links;
+         Api_wiki.wi_file_path = Notes.file_path conf base;
+         Api_wiki.wi_person_exists = person_exists conf base;
+         Api_wiki.wi_always_show_link = conf.wizard || conf.friend}
       in
-      string_with_macros conf [] s
-    else ""
+      Api_wiki.syntax_links conf wi s
+    in
+    string_with_macros conf [] s
   in
   let children =
     Mutil.array_to_list_map
@@ -1122,7 +991,7 @@ let get_families_piqi base conf p base_prefix spouse_to_piqi_callback witnesses_
            else (ifath, imoth, if ip = ifath then imoth else ifath)
          in
          let can_merge =
-           let fam = Mutil.array_to_list_map (foi base) (get_family p) in
+           let fam = Mutil.array_to_list_map (fget conf base) (get_family p) in
            Perso_link.can_merge_family conf.command (get_key_index p) fam fam_link cpl
          in
          if can_merge then accu
@@ -1195,7 +1064,7 @@ let get_rparents_piqi base conf base_prefix gen_p has_relations pers_to_piqi_cal
       - p                         : the person
       - base_prefix               : the name of the base of the person
       - gen_p                     : the generation of the person
-      - p_auth                    : private informations are returned
+      -                    : private informations are returned
       - has_relations             : indicate if the main person has relations
       - pers_to_piqi_callback     : function to call to create a person object
       - event_witness_constructor : function to call to create a event witness object
@@ -1203,7 +1072,7 @@ let get_rparents_piqi base conf base_prefix gen_p has_relations pers_to_piqi_cal
       - Array of events
                                                                          *)
 (* ********************************************************************* *)
-let get_events_witnesses conf base p base_prefix gen_p p_auth has_relations pers_to_piqi_callback event_witness_constructor =
+let get_events_witnesses conf base p base_prefix gen_p has_relations pers_to_piqi_callback event_witness_constructor =
   if has_relations then
     begin
       let related = List.sort_uniq compare gen_p.related in
@@ -1251,12 +1120,8 @@ let get_events_witnesses conf base p base_prefix gen_p p_auth has_relations pers
           in
           let witnesses_name =
             match name with
-            | Perso.Pevent name ->
-                if p_auth then Util.string_of_pevent_name conf base name
-                else  ""
-            | Perso.Fevent name ->
-                if p_auth then Util.string_of_fevent_name conf base name
-                else  ""
+            | Perso.Pevent name -> Util.string_of_pevent_name conf base name
+            | Perso.Fevent name -> Util.string_of_fevent_name conf base name
           in
           let event_witness_type =
             capitale wk ^ witness_date ^ ": " ^ witnesses_name
@@ -1333,107 +1198,95 @@ let fam_to_piqi_family conf base p ifam =
   in
   get_family_piqi base conf ifam p base_prefix spouse_to_piqi_callback witnesses_to_piqi_callback child_to_piqi_callback family_constructor
 
-let fill_image conf base p =
-  if has_image conf base p then
-        let img = sou base (get_image p) in
-        if img <> "" then img
-        else if Api_util.find_image_file conf base p <> None then "1"
-        else ""
-  else ""
 
-let fill_birth_place conf p_auth gen_p =
-  if p_auth then Util.string_of_place conf gen_p.birth_place else ""
+let fill_birth_place conf gen_p =
+  Util.string_of_place conf gen_p.birth_place
 
-let fill_baptism_place conf p_auth gen_p =
-  if p_auth then Util.string_of_place conf gen_p.baptism_place else ""
+let fill_baptism_place conf gen_p =
+  Util.string_of_place conf gen_p.baptism_place
 
-let fill_death_place conf p_auth gen_p =
-  if p_auth then Util.string_of_place conf gen_p.death_place else ""
+let fill_death_place conf gen_p =
+  Util.string_of_place conf gen_p.death_place
 
-let fill_birth_src p_auth gen_p =
-  if p_auth then gen_p.birth_src else ""
+let fill_birth_src gen_p =
+  gen_p.birth_src
 
-let fill_burial_src p_auth gen_p =
-  if p_auth then gen_p.burial_src else ""
+let fill_burial_src gen_p =
+  gen_p.burial_src
 
-let fill_death_src p_auth gen_p =
-  if p_auth then gen_p.death_src else ""
+let fill_death_src gen_p =
+  gen_p.death_src
 
-let fill_baptism_src p_auth gen_p =
-  if p_auth then gen_p.baptism_src else ""
+let fill_baptism_src gen_p =
+  gen_p.baptism_src
 
-let fill_burial_place conf p_auth gen_p =
-  if p_auth then Util.string_of_place conf gen_p.burial_place else ""
+let fill_burial_place conf gen_p =
+  Util.string_of_place conf gen_p.burial_place
 
-let fill_death conf p_auth gen_p =
-  match (p_auth, gen_p.death) with
-      | (true, NotDead) -> (`not_dead, "", "", None)
-      | (true, Death (_, cd)) ->
-          let d = Adef.date_of_cdate cd in
-          let (death, _, death_conv, _, death_cal) = string_of_date_and_conv conf d in
-          (`dead, death, death_conv, death_cal)
-      | (true, DeadYoung) -> (`dead_young, "", "", None)
-      | (true, DeadDontKnowWhen) -> (`dead_dont_know_when, "", "", None)
-      | (true, DontKnowIfDead) -> (`dont_know_if_dead, "", "", None)
-      | (true, OfCourseDead) -> (`of_course_dead, "", "", None)
-      | _ -> (`dont_know_if_dead, "", "", None)
+let fill_death conf gen_p =
+  match gen_p.death with
+  | NotDead -> (`not_dead, "", "", None)
+  | Death (_, cd) ->
+    let d = Adef.date_of_cdate cd in
+    let (death, _, death_conv, _, death_cal) = string_of_date_and_conv conf d in
+    (`dead, death, death_conv, death_cal)
+  | DeadYoung -> (`dead_young, "", "", None)
+  | DeadDontKnowWhen -> (`dead_dont_know_when, "", "", None)
+  | DontKnowIfDead -> (`dont_know_if_dead, "", "", None)
+  | OfCourseDead -> (`of_course_dead, "", "", None)
 
-let fill_birth conf p_auth gen_p =
-  match (p_auth, Adef.od_of_cdate gen_p.birth) with
-      | (true, Some d) -> string_of_date_and_conv conf d
-      | _ -> ("", "", "", "", None)
+let fill_birth conf gen_p =
+  match Adef.od_of_cdate gen_p.birth with
+  | Some d -> string_of_date_and_conv conf d
+  | _ -> ("", "", "", "", None)
 
-let fill_baptism conf p_auth gen_p =
-  match (p_auth, Adef.od_of_cdate gen_p.baptism) with
-      | (true, Some d) -> string_of_date_and_conv conf d
-      | _ -> ("", "", "", "", None)
+let fill_baptism conf gen_p =
+  match Adef.od_of_cdate gen_p.baptism with
+  | Some d -> string_of_date_and_conv conf d
+  | _ -> ("", "", "", "", None)
 
-let fill_burial conf p_auth gen_p =
-  match (p_auth, gen_p.burial) with
-      | (true, Buried cod) | (true, Cremated cod) ->
-          (match Adef.od_of_cdate cod with
-          | Some d -> string_of_date_and_conv conf d
-          | _ -> ("", "", "", "", None))
-      | _ -> ("", "", "", "", None)
+let fill_burial conf gen_p =
+  match gen_p.burial with
+  | Buried cod | Cremated cod ->
+    (match Adef.od_of_cdate cod with
+     | Some d -> string_of_date_and_conv conf d
+     | _ -> ("", "", "", "", None))
+  | _ -> ("", "", "", "", None)
 
-let fill_occupation conf base p_auth gen_p =
-  if p_auth then
-        let s = gen_p.occupation in
-        let s =
-          let wi =
-            {Wiki.wi_mode = "NOTES"; Wiki.wi_cancel_links = conf.cancel_links;
-             Wiki.wi_file_path = Notes.file_path conf base;
-             Wiki.wi_person_exists = person_exists conf base;
-             Wiki.wi_always_show_link = conf.wizard || conf.friend}
-          in
-          Wiki.syntax_links conf wi s
-        in
-        string_with_macros conf [] s
-      else ""
-
-let fill_index conf p p_auth =
-  if not p_auth && (is_hide_names conf p)
-  then
-    Int32.of_int (-1)
-  else
-    Int32.of_int (Adef.int_of_iper (get_key_index p))
-
-let fill_sources conf base p p_auth gen_p is_main_person =
-  if p_auth && is_main_person then
-    let s = gen_p.psources in
-    let env = [('i', fun () -> Util.default_image_name base p)] in
-    let s =
-      let wi =
-        {Api_wiki.wi_mode = "NOTES";
-         Api_wiki.wi_cancel_links = conf.cancel_links;
-         Api_wiki.wi_file_path = Notes.file_path conf base;
-         Api_wiki.wi_person_exists = person_exists conf base;
-         Api_wiki.wi_always_show_link = conf.wizard || conf.friend}
-      in
-      Api_wiki.syntax_links conf wi s
+let fill_occupation_aux conf base s =
+  let s =
+    let wi =
+      {Wiki.wi_mode = "NOTES"; Wiki.wi_cancel_links = conf.cancel_links;
+       Wiki.wi_file_path = Notes.file_path conf base;
+       Wiki.wi_person_exists = person_exists conf base;
+       Wiki.wi_always_show_link = conf.wizard || conf.friend}
     in
-    string_with_macros conf env s
-    else ""
+    Wiki.syntax_links conf wi s
+  in
+  string_with_macros conf [] s
+
+let fill_occupation conf base gen_p =
+  fill_occupation_aux conf base gen_p.occupation
+
+let fill_sources_aux conf base p s =
+  let env = [('i', fun () -> Util.default_image_name base p)] in
+  let s =
+    let wi =
+      {Api_wiki.wi_mode = "NOTES";
+       Api_wiki.wi_cancel_links = conf.cancel_links;
+       Api_wiki.wi_file_path = Notes.file_path conf base;
+       Api_wiki.wi_person_exists = person_exists conf base;
+       Api_wiki.wi_always_show_link = conf.wizard || conf.friend}
+    in
+    Api_wiki.syntax_links conf wi s
+  in
+  string_with_macros conf env s
+
+let fill_sources conf base p gen_p is_main_person =
+  if is_main_person then
+    let s = gen_p.psources in
+    fill_sources_aux conf base p s
+  else ""
 
 let fill_parents conf base p base_prefix =
   match get_parents p with
@@ -1487,22 +1340,22 @@ let fill_fiche_parents conf base p base_prefix nb_asc nb_asc_max with_parent_fam
   then
     match get_parents p with
     | Some ifam ->
-        let cpl = foi base ifam in
+        let cpl = fget conf base ifam in
         let ifath = get_father cpl in
         let imoth = get_mother cpl in
         let father =
-          if (Adef.int_of_iper ifath) < 0 then None
+          if ifath = Adef.iper_of_int (-1) then None
           else
-            let father = poi base ifath in
+            let father = pget conf base ifath in
             if with_parent_families then
                 Some (pers_to_piqi_person conf base father base_prefix false (nb_asc+1) nb_asc_max 0 2 true simple_graph_info no_event)
             else
                 Some (pers_to_piqi_person conf base father base_prefix false (nb_asc+1) nb_asc_max 0 0 false simple_graph_info no_event)
         in
         let mother =
-          if (Adef.int_of_iper imoth) < 0 then None
+          if imoth = Adef.iper_of_int (-1) then None
           else
-            let mother = poi base imoth in
+            let mother = pget conf base imoth in
             if with_parent_families then
               Some (pers_to_piqi_person conf base mother base_prefix false (nb_asc+1) nb_asc_max 0 2 true simple_graph_info no_event)
             else
@@ -1515,7 +1368,7 @@ let fill_fiche_parents conf base p base_prefix nb_asc nb_asc_max with_parent_fam
         let base_prefix = conf.command in
         match Perso_link.get_parents_link base_prefix ip with
         | Some family ->
-            begin
+          begin
               let ifath = Adef.iper_of_int (Int32.to_int family.MLink.Family.ifath) in
               let imoth = Adef.iper_of_int (Int32.to_int family.MLink.Family.imoth) in
               let fam_base_prefix = family.MLink.Family.baseprefix in
@@ -1529,25 +1382,25 @@ let fill_fiche_parents conf base p base_prefix nb_asc nb_asc_max with_parent_fam
                   let (moth, _) = Perso_link.make_ep_link base pmoth in
                   let father =
                     if with_parent_families then
-                      Some (pers_to_piqi_person conf base fath fam_base_prefix false (nb_asc+1) nb_asc_max 0 1 true simple_graph_info no_event)
+                      pers_to_piqi_person conf base fath fam_base_prefix false (nb_asc+1) nb_asc_max 0 1 true simple_graph_info no_event
                     else
-                      Some (pers_to_piqi_person conf base fath fam_base_prefix false (nb_asc+1) nb_asc_max 0 0 false simple_graph_info no_event)
+                      pers_to_piqi_person conf base fath fam_base_prefix false (nb_asc+1) nb_asc_max 0 0 false simple_graph_info no_event
                   in
                   let mother =
                     if with_parent_families then
-                      Some (pers_to_piqi_person conf base moth fam_base_prefix false (nb_asc+1) nb_asc_max 0 1 true simple_graph_info no_event)
+                      pers_to_piqi_person conf base moth fam_base_prefix false (nb_asc+1) nb_asc_max 0 1 true simple_graph_info no_event
                     else
-                      Some (pers_to_piqi_person conf base moth fam_base_prefix false (nb_asc+1) nb_asc_max 0 0 false simple_graph_info no_event)
+                      pers_to_piqi_person conf base moth fam_base_prefix false (nb_asc+1) nb_asc_max 0 0 false simple_graph_info no_event
                   in
-                  (father, mother)
+                  (Some father, Some mother)
               | _ -> (None, None)
             end
         | None -> (None, None)
       else
         (None, None)
 
-let has_relations conf base p p_auth is_main_person =
-  if p_auth && conf.use_restrict && is_main_person  then
+let has_relations conf base p is_main_person =
+  if (* && conf.use_restrict &&  *)is_main_person  then
     let related =
       List.fold_left
         (fun l ip ->
@@ -1556,7 +1409,7 @@ let has_relations conf base p p_auth is_main_person =
       [] (get_related p)
     in
     get_rparents p <> [] || related <> []
-  else p_auth && (get_rparents p <> [] || get_related p <> [])
+  else get_rparents p <> [] || get_related p <> []
 
 let get_event_constructor name type_ date date_long date_raw date_conv date_conv_long date_cal place note src spouse witnesses =
       {
@@ -1620,8 +1473,8 @@ let fiche_event_witness_constructor event_witness_type husband wife =
     wife = wife;
   })
 
-let fill_notes conf base p p_auth is_main_person gen_p =
-  if p_auth && not conf.no_note && is_main_person then
+let fill_notes conf base p is_main_person gen_p =
+  if not conf.no_note && is_main_person then
     let env = [('i', fun () -> Util.default_image_name base p)] in
     let s = gen_p.notes in
     convert_wiki_notes_to_html_notes conf base env s "\n"
@@ -1734,89 +1587,83 @@ let fill_fiche_families conf base p base_prefix nb_asc nb_desc nb_desc_max pers_
         children = children;
       }
     in
-      get_families_piqi base conf p base_prefix spouse_to_piqi_callback witnesses_to_piqi_callback child_to_piqi_callback family_constructor
+    get_families_piqi base conf p base_prefix spouse_to_piqi_callback witnesses_to_piqi_callback child_to_piqi_callback family_constructor
   else []
 
-let has_sources p_auth psources birth_src baptism_src death_src burial_src =
-  if not p_auth then false
-    else if psources <> "" then true
-    else if
-      p_auth &&
-      (birth_src <> "" || baptism_src <> "" ||
-       death_src <> "" || burial_src <> "")
-    then true
+let has_sources psources birth_src baptism_src death_src burial_src =
+  if psources <> "" then true
+  else if
+    (birth_src <> "" || baptism_src <> "" ||
+     death_src <> "" || burial_src <> "")
+  then true
   else false
 
 let fill_titles conf base p =
   let tmp_conf = {(conf) with cancel_links = true} in
   List.map (Perso.string_of_title tmp_conf base "" p) (Perso.nobility_titles_list conf base p)
 
-let transform_empty_string_to_None string =
-  if string = "" then None else Some string
+let fill_birth_date_raw conf gen_p =
+  match Adef.od_of_cdate gen_p.birth with
+  | Some d -> string_of_date_raw conf d
+  | _ -> ""
 
-let fill_birth_date_raw conf p_auth gen_p =
-  match (p_auth, Adef.od_of_cdate gen_p.birth) with
-    | (true, Some d) -> string_of_date_raw conf d
-    | _ -> ""
+let fill_baptism_date_raw conf gen_p =
+  match Adef.od_of_cdate gen_p.baptism with
+  | Some d -> string_of_date_raw conf d
+  | _ -> ""
 
-let fill_baptism_date_raw conf p_auth gen_p =
-  match (p_auth, Adef.od_of_cdate gen_p.baptism) with
-    | (true, Some d) -> string_of_date_raw conf d
-    | _ -> ""
+let fill_death_date_raw conf gen_p =
+  match gen_p.death with
+  | Death (_, cd) ->
+    let d = Adef.date_of_cdate cd in
+    string_of_date_raw conf d
+  | _ -> ""
 
-let fill_death_date_raw conf p_auth gen_p =
-  match (p_auth, gen_p.death) with
-      | (true, Death (_, cd)) ->
-          let d = Adef.date_of_cdate cd in
-          string_of_date_raw conf d
-      | _ -> ""
-
-let fill_burial_date_raw_if_is_main_person conf p_auth gen_p is_main_person =
+let fill_burial_date_raw_if_is_main_person conf gen_p is_main_person =
   if is_main_person then
-    match (p_auth, gen_p.burial) with
-    | (true, Buried cod) | (true, Cremated cod) ->
-        (match Adef.od_of_cdate cod with
-        | Some d -> string_of_date_raw conf d
-        | _ -> "")
+    match gen_p.burial with
+    | Buried cod | Cremated cod ->
+      (match Adef.od_of_cdate cod with
+       | Some d -> string_of_date_raw conf d
+       | _ -> "")
     | _ -> ""
   else
     ""
 
-let fill_birth_text conf p p_auth =
-  Perso.get_birth_text conf p p_auth
+let fill_birth_text conf p =
+  Perso.get_birth_text conf p true (* FIXME: true *)
 
-let fill_baptism_text conf p p_auth =
-  Perso.get_baptism_text conf p p_auth
+let fill_baptism_text conf p =
+  Perso.get_baptism_text conf p true (* FIXME: true *)
 
-let fill_death_text conf p p_auth =
-  Perso.get_death_text conf p p_auth
+let fill_death_text conf p =
+  Perso.get_death_text conf p true (* FIXME: true *)
 
-let fill_burial_text conf p p_auth =
-  Perso.get_burial_text conf p p_auth
+let fill_burial_text conf p =
+  Perso.get_burial_text conf p true (* FIXME: true *)
 
-let fill_cremation_text conf p p_auth =
-  Perso.get_cremation_text conf p p_auth
+let fill_cremation_text conf p =
+  Perso.get_cremation_text conf p true (* FIXME: true *)
 
-let fill_baptism_text_if_main_person_or_parent conf p p_auth is_main_person_or_father_or_mother =
-  if (is_main_person_or_father_or_mother) then
-    fill_baptism_text conf p p_auth
+let fill_baptism_text_if_main_person_or_parent conf p is_main_person_or_father_or_mother =
+  if is_main_person_or_father_or_mother then
+    fill_baptism_text conf p
   else ""
 
-let fill_burial_type p_auth gen_p =
-  if p_auth then
-  match (gen_p.burial) with
-    | Buried _ -> `buried
-    | Cremated _ -> `cremated
-    | _ -> `dont_know
-  else `dont_know
+let fill_burial_type gen_p =
+  match gen_p.burial with
+  | Buried _ -> `buried
+  | Cremated _ -> `cremated
+  | _ -> `dont_know
+
 
 let fill_titles_with_links conf base p =
   let tmp_conf = {(conf) with cancel_links = false} in
   List.map (Perso.string_of_title tmp_conf base "" p) (Perso.nobility_titles_list conf base p)
 
-let has_history_if_is_main_person conf base p p_auth is_main_person =
+let has_history_if_is_main_person conf base p is_main_person =
   if is_main_person then
-    Perso.has_history conf base p p_auth
+    Perso.has_history conf base p true (* FIXME: true *)
   else false
 
 let has_duplication_if_is_main_person conf base p is_main_person =
@@ -1854,66 +1701,62 @@ let fill_linked_page_if_is_main_person conf base p is_main_person =
     [Rem] : Non exporté en clair hors de ce module.                           *)
 (* ************************************************************************** *)
 let pers_to_piqi_person conf base p base_prefix is_main_person =
-  if is_restricted conf base (get_key_index p) then
-    get_restricted_person ()
-  else
-    let p_auth = authorized_age conf base p in
     let gen_p = Util.string_gen_person base (gen_person_of_person p) in
-    let has_relations = has_relations conf base p p_auth is_main_person in
+    let has_relations = has_relations conf base p is_main_person in
 
-    let (baptism_date, _, baptism_date_conv, _, baptism_cal) = fill_baptism conf p_auth gen_p in
-    let (birth_date, _, birth_date_conv, _, birth_cal) = fill_birth conf p_auth gen_p in
-    let (burial_date, _, burial_date_conv, _,burial_cal) = fill_burial conf p_auth gen_p in
-    let (death_type, death_date, death_date_conv, death_cal) = fill_death conf p_auth gen_p in
+    let (baptism_date, _, baptism_date_conv, _, baptism_cal) = fill_baptism conf gen_p in
+    let (birth_date, _, birth_date_conv, _, birth_cal) = fill_birth conf gen_p in
+    let (burial_date, _, burial_date_conv, _,burial_cal) = fill_burial conf gen_p in
+    let (death_type, death_date, death_date_conv, death_cal) = fill_death conf gen_p in
 
     let (father, mother) = fill_parents conf base p base_prefix in
 
-    let psources = fill_sources conf base p p_auth gen_p is_main_person in
-    let birth_src = fill_birth_src p_auth gen_p in
-    let baptism_src = fill_baptism_src p_auth gen_p in
-    let death_src = fill_death_src p_auth gen_p in
-    let burial_src = fill_burial_src p_auth gen_p in
-    let has_sources = has_sources p_auth psources birth_src baptism_src death_src burial_src in
+    let psources = fill_sources conf base p gen_p is_main_person in
+    let birth_src = fill_birth_src gen_p in
+    let baptism_src = fill_baptism_src gen_p in
+    let death_src = fill_death_src gen_p in
+    let burial_src = fill_burial_src gen_p in
+    let has_sources = has_sources psources birth_src baptism_src death_src burial_src in
 
     {
       Mread.Person.type_ = `simple;
-      index = fill_index conf p p_auth;
+      index = fill_index p;
       sex = fill_sex p;
-      lastname = fill_surname conf p p_auth gen_p;
-      firstname = fill_firstname conf p p_auth gen_p;
-      n = fill_sn conf base p p_auth;
-      p = fill_fn conf base p p_auth;
+      lastname = fill_surname gen_p;
+      firstname = fill_firstname gen_p;
+      n = fill_sn base p;
+      p = fill_fn base p;
       occ = fill_occ p;
-      public_name = fill_publicname p_auth gen_p;
-      aliases = fill_aliases p_auth gen_p;
-      qualifiers = fill_qualifiers p_auth gen_p;
-      firstname_aliases = fill_firstname_aliases p_auth gen_p;
-      surname_aliases = fill_surname_aliases p_auth gen_p;
-      image = transform_empty_string_to_None (fill_image conf base p);
-      birth_date = transform_empty_string_to_None birth_date;
-      birth_date_conv = transform_empty_string_to_None birth_date_conv;
+      public_name = fill_publicname gen_p;
+      aliases = fill_aliases gen_p;
+      qualifiers = fill_qualifiers gen_p;
+      firstname_aliases = fill_firstname_aliases gen_p;
+      surname_aliases = fill_surname_aliases gen_p;
+      image = fill_image conf base p;
+      birth_date = Opt.of_string birth_date;
+      birth_date_conv = Opt.of_string birth_date_conv;
       birth_date_cal = birth_cal;
-      birth_place = transform_empty_string_to_None (fill_birth_place conf p_auth gen_p);
-      birth_src = transform_empty_string_to_None (fill_birth_src p_auth gen_p);
-      baptism_date = transform_empty_string_to_None baptism_date;
-      baptism_date_conv = transform_empty_string_to_None baptism_date_conv;
+      birth_place = Opt.of_string (fill_birth_place conf gen_p);
+      birth_src = Opt.of_string (fill_birth_src gen_p);
+      baptism_date = Opt.of_string baptism_date;
+      baptism_date_conv = Opt.of_string baptism_date_conv;
       baptism_date_cal = baptism_cal;
-      baptism_place = transform_empty_string_to_None (fill_baptism_place conf p_auth gen_p);
-      baptism_src = transform_empty_string_to_None baptism_src;
-      death_date = transform_empty_string_to_None death_date;
-      death_date_conv = transform_empty_string_to_None death_date_conv;
+      baptism_place = Opt.of_string (fill_baptism_place conf gen_p);
+      baptism_src = Opt.of_string baptism_src;
+      death_date = Opt.of_string death_date;
+      death_date_conv = Opt.of_string death_date_conv;
       death_date_cal = death_cal;
-      death_place = transform_empty_string_to_None (fill_death_place conf p_auth gen_p);
-      death_src = transform_empty_string_to_None death_src;
+      death_place = Opt.of_string (fill_death_place conf gen_p);
+      death_src = Opt.of_string death_src;
       death_type = death_type;
-      burial_date = transform_empty_string_to_None burial_date;
-      burial_date_conv = transform_empty_string_to_None burial_date_conv;
+      burial_date = Opt.of_string burial_date;
+      burial_date_conv = Opt.of_string burial_date_conv;
       burial_date_cal = burial_cal;
-      burial_place = transform_empty_string_to_None (fill_burial_place conf p_auth gen_p);
-      burial_src = transform_empty_string_to_None burial_src;
-      occupation = transform_empty_string_to_None (fill_occupation conf base p_auth gen_p);
-      notes = transform_empty_string_to_None (fill_notes conf base p p_auth is_main_person gen_p);
-      psources = transform_empty_string_to_None psources;
+      burial_place = Opt.of_string (fill_burial_place conf gen_p);
+      burial_src = Opt.of_string burial_src;
+      occupation = Opt.of_string (fill_occupation conf base gen_p);
+      notes = Opt.of_string (fill_notes conf base p is_main_person gen_p);
+      psources = Opt.of_string psources;
       has_sources = has_sources;
       titles = fill_titles conf base p;
       related = get_related_piqi conf base p base_prefix gen_p has_relations pers_to_piqi_simple_person simple_relation_person_constructor;
@@ -1922,8 +1765,8 @@ let pers_to_piqi_person conf base p base_prefix is_main_person =
       mother = mother;
       families = fill_families conf base p;
       sosa = fill_sosa p;
-      events = fill_events conf base p base_prefix p_auth pers_to_piqi_simple_person simple_witness_constructor get_event_constructor;
-      events_witnesses = get_events_witnesses conf base p base_prefix gen_p p_auth has_relations pers_to_piqi_simple_person simple_event_witness_constructor;
+      events = fill_events conf base p base_prefix pers_to_piqi_simple_person simple_witness_constructor get_event_constructor;
+      events_witnesses = get_events_witnesses conf base p base_prefix gen_p has_relations pers_to_piqi_simple_person simple_event_witness_constructor;
       baseprefix = base_prefix;
       fiche_person_person = None;
     }
@@ -1936,149 +1779,125 @@ let fill_ref_if_is_main_person conf base is_main_person =
   else
     (None, None)
 
-(* ************************************************************************** *)
-(*  [Fonc] pers_to_piqi_fiche_person :
-    config -> base -> person -> base_prefix -> bool -> int -> int -> int
-    -> int -> bool -> bool -> bool -> Person                                  *)
-(** [Description] : Retourne à partir d'une person (gwdb) une Person fiche
-                    (piqi) dont tous les champs sont complétés.
-    [Args] :
-      - conf         : configuration de la base
-      - base         : base de donnée
-      - p            : person
-      - base_prefix  : nom de l'arbre (différent de base dans le cas des LIA)
-      - with_parents : bool
-    [Retour] :
-      - Person
-    [Rem] : Non exporté en clair hors de ce module.                           *)
-(* ************************************************************************** *)
 let rec pers_to_piqi_fiche_person conf base p base_prefix is_main_person nb_asc nb_asc_max nb_desc nb_desc_max with_parent_families simple_graph_info no_event =
   (* Generates a fiche person by default. *)
-  let piqi_fiche_person = Mread.default_fiche_person() in
-  (* If the access is restricted, returns the person with default fields. *)
-  if is_restricted conf base (get_key_index p) then
-    get_restricted_person ()
-  else
-    begin
-      let p_auth = authorized_age conf base p in
-      let gen_p = Util.string_gen_person base (gen_person_of_person p) in
+  let piqi_fiche_person = Mread.default_fiche_person () in
+  let gen_p = Util.string_gen_person base (gen_person_of_person p) in
+  (* Sources only returned for the main person. *)
+  let psources = if is_main_person then fill_sources conf base p gen_p is_main_person else "" in
+  let birth_src = if is_main_person then fill_birth_src gen_p else "" in
+  let baptism_src = if is_main_person then fill_baptism_src gen_p else "" in
+  let death_src = if is_main_person then fill_death_src gen_p else "" in
+  let burial_src = if is_main_person then fill_burial_src gen_p else "" in
+  let has_sources = if is_main_person then has_sources psources birth_src baptism_src death_src burial_src else false in
+  let (death_type, death_date, death_date_conv, death_cal) = fill_death conf gen_p in
+  (* Linked links (family book). *)
+  let (linked_page_biblio, linked_page_bnote, linked_page_death, linked_page_head, linked_page_occu) = if not simple_graph_info then fill_linked_page_if_is_main_person conf base p is_main_person else ("", "", "", "", "") in
+  let pers_to_piqi_fiche_person_only conf base p base_prefix =
+    pers_to_piqi_fiche_person conf base p base_prefix false 0 0 0 0 false simple_graph_info no_event
+  in
+  let sosa_nb = Perso.get_sosa_person p in
+  let (fiche_father, fiche_mother) = if is_main_person || not simple_graph_info then fill_fiche_parents conf base p base_prefix nb_asc nb_asc_max with_parent_families pers_to_piqi_fiche_person simple_graph_info no_event else (None, None) in
+  let (father, mother) = if with_parent_families then fill_parents conf base p base_prefix else (None, None) in
+  let has_relations = if is_main_person then has_relations conf base p is_main_person else false in
+  (* Returns simple person attributes only when nb of desc is 0. *)
+  let return_simple_attributes = (nb_desc_max == 0) in
+  let (ref_index, ref_person) = fill_ref_if_is_main_person conf base is_main_person in
+  let piqi_fiche_person =
+    (* Fields shared by all the members of the family. *)
+    piqi_fiche_person.Mread.Fiche_person.birth_date_raw <- Opt.of_string (fill_birth_date_raw conf gen_p);
+    piqi_fiche_person.Mread.Fiche_person.birth_text <- Opt.of_string (fill_birth_text conf p);
+    piqi_fiche_person.Mread.Fiche_person.burial_date_raw <- Opt.of_string (fill_burial_date_raw_if_is_main_person conf gen_p is_main_person);
+    piqi_fiche_person.Mread.Fiche_person.burial_text <- Opt.of_string (fill_burial_text conf p);
+    piqi_fiche_person.Mread.Fiche_person.burial_type <- fill_burial_type gen_p;
+    piqi_fiche_person.Mread.Fiche_person.cremation_text <- Opt.of_string (fill_cremation_text conf p);
+    piqi_fiche_person.Mread.Fiche_person.death_date_raw <- Opt.of_string (fill_death_date_raw conf gen_p);
+    piqi_fiche_person.Mread.Fiche_person.death_text <- Opt.of_string (fill_death_text conf p);
+    piqi_fiche_person.Mread.Fiche_person.titles_links <- if not simple_graph_info then fill_titles_with_links conf base p else [];
+    piqi_fiche_person.Mread.Fiche_person.sosa_nb <- if sosa_nb = Sosa.zero then None else Some (Sosa.to_string sosa_nb);
+    piqi_fiche_person.Mread.Fiche_person.father <- fiche_father;
+    piqi_fiche_person.Mread.Fiche_person.mother <- fiche_mother;
+    if is_main_person || not simple_graph_info then
+      piqi_fiche_person.Mread.Fiche_person.families <- fill_fiche_families conf base p base_prefix nb_asc nb_desc nb_desc_max pers_to_piqi_fiche_person simple_graph_info no_event;
 
-      (* Sources only returned for the main person. *)
-      let psources = if (is_main_person) then fill_sources conf base p p_auth gen_p is_main_person else "" in
-      let birth_src = if (is_main_person) then fill_birth_src p_auth gen_p else "" in
-      let baptism_src = if (is_main_person) then fill_baptism_src p_auth gen_p else "" in
-      let death_src = if (is_main_person) then fill_death_src p_auth gen_p else "" in
-      let burial_src = if (is_main_person) then fill_burial_src p_auth gen_p else "" in
-      let has_sources = if (is_main_person) then has_sources p_auth psources birth_src baptism_src death_src burial_src else false in
-      let (death_type, death_date, death_date_conv, death_cal) = fill_death conf p_auth gen_p in
-      (* Linked links (family book). *)
-      let (linked_page_biblio, linked_page_bnote, linked_page_death, linked_page_head, linked_page_occu) = if not simple_graph_info then fill_linked_page_if_is_main_person conf base p is_main_person else ("", "", "", "", "") in
-      let pers_to_piqi_fiche_person_only conf base p base_prefix =
-        pers_to_piqi_fiche_person conf base p base_prefix false 0 0 0 0 false simple_graph_info no_event
-      in
-      let sosa_nb = Perso.get_sosa_person p in
-      let (fiche_father, fiche_mother) = if is_main_person || not simple_graph_info then fill_fiche_parents conf base p base_prefix nb_asc nb_asc_max with_parent_families pers_to_piqi_fiche_person simple_graph_info no_event else (None, None) in
-      let (father, mother) = if with_parent_families then fill_parents conf base p base_prefix else (None, None) in
-      let has_relations = if is_main_person then has_relations conf base p p_auth is_main_person else false in
-      (* Returns simple person attributes only when nb of desc is 0. *)
-      let return_simple_attributes = (nb_desc_max == 0) in
-      let (ref_index, ref_person) = fill_ref_if_is_main_person conf base is_main_person in
-      let piqi_fiche_person =
-        (* Fields shared by all the members of the family. *)
-        piqi_fiche_person.Mread.Fiche_person.birth_date_raw <- transform_empty_string_to_None (fill_birth_date_raw conf p_auth gen_p);
-        piqi_fiche_person.Mread.Fiche_person.birth_text <- transform_empty_string_to_None (fill_birth_text conf p p_auth);
-        piqi_fiche_person.Mread.Fiche_person.burial_date_raw <- transform_empty_string_to_None (fill_burial_date_raw_if_is_main_person conf p_auth gen_p is_main_person);
-        piqi_fiche_person.Mread.Fiche_person.burial_text <- transform_empty_string_to_None (fill_burial_text conf p p_auth);
-        piqi_fiche_person.Mread.Fiche_person.burial_type <- fill_burial_type p_auth gen_p;
-        piqi_fiche_person.Mread.Fiche_person.cremation_text <- transform_empty_string_to_None (fill_cremation_text conf p p_auth);
-        piqi_fiche_person.Mread.Fiche_person.death_date_raw <- transform_empty_string_to_None (fill_death_date_raw conf p_auth gen_p);
-        piqi_fiche_person.Mread.Fiche_person.death_text <- transform_empty_string_to_None (fill_death_text conf p p_auth);
-        piqi_fiche_person.Mread.Fiche_person.titles_links <- if not simple_graph_info then fill_titles_with_links conf base p else [];
-        piqi_fiche_person.Mread.Fiche_person.sosa_nb <- if sosa_nb = Sosa.zero then None else Some (Sosa.to_string sosa_nb);
-        piqi_fiche_person.Mread.Fiche_person.father <- fiche_father;
-        piqi_fiche_person.Mread.Fiche_person.mother <- fiche_mother;
-        if is_main_person || not simple_graph_info then
-          piqi_fiche_person.Mread.Fiche_person.families <- fill_fiche_families conf base p base_prefix nb_asc nb_desc nb_desc_max pers_to_piqi_fiche_person simple_graph_info no_event;
+    (* Fields only filled for the main person. *)
+    piqi_fiche_person.Mread.Fiche_person.baptism_date_raw <- if is_main_person then Opt.of_string (fill_baptism_date_raw conf gen_p) else None;
+    piqi_fiche_person.Mread.Fiche_person.baptism_text <- if is_main_person then Opt.of_string (fill_baptism_text conf p) else None;
+    piqi_fiche_person.Mread.Fiche_person.has_possible_duplications <- has_duplication_if_is_main_person conf base p is_main_person;
+    piqi_fiche_person.Mread.Fiche_person.ref_index <- ref_index;
+    piqi_fiche_person.Mread.Fiche_person.ref_person <- ref_person;
+    piqi_fiche_person.Mread.Fiche_person.has_history <- has_history_if_is_main_person conf base p is_main_person;
+    piqi_fiche_person.Mread.Fiche_person.linked_page_biblio <- linked_page_biblio;
+    piqi_fiche_person.Mread.Fiche_person.linked_page_bnote <- linked_page_bnote;
+    piqi_fiche_person.Mread.Fiche_person.linked_page_death <- linked_page_death;
+    piqi_fiche_person.Mread.Fiche_person.linked_page_head <- linked_page_head;
+    piqi_fiche_person.Mread.Fiche_person.linked_page_occu <- linked_page_occu;
+    piqi_fiche_person.Mread.Fiche_person.visible_for_visitors <- is_visible conf base p;
+    piqi_fiche_person.Mread.Fiche_person.related <- if is_main_person && not simple_graph_info then get_related_piqi conf base p base_prefix gen_p has_relations pers_to_piqi_fiche_person_only fiche_relation_person_constructor else [];
+    piqi_fiche_person.Mread.Fiche_person.rparents <- if is_main_person && not simple_graph_info then get_rparents_piqi base conf base_prefix gen_p has_relations pers_to_piqi_fiche_person_only fiche_relation_person_constructor else [];
+    if not no_event then
+      piqi_fiche_person.Mread.Fiche_person.events_witnesses <- if is_main_person then get_events_witnesses conf base p base_prefix gen_p has_relations pers_to_piqi_fiche_person_only fiche_event_witness_constructor else [];
+    if not no_event then
+      piqi_fiche_person.Mread.Fiche_person.events <- fill_events_if_is_main_person conf base p base_prefix is_main_person pers_to_piqi_fiche_person_only fiche_witness_constructor fiche_event_constructor;
+    piqi_fiche_person
+  in
+  {
+    Mread.Person.type_ = `fiche;
+    fiche_person_person = Some piqi_fiche_person;
+    n = fill_sn base p;
+    p = fill_fn base p;
+    occ = fill_occ p;
 
-        (* Fields only filled for the main person. *)
-        piqi_fiche_person.Mread.Fiche_person.baptism_date_raw <- if is_main_person then transform_empty_string_to_None (fill_baptism_date_raw conf p_auth gen_p) else None;
-        piqi_fiche_person.Mread.Fiche_person.baptism_text <- if is_main_person then transform_empty_string_to_None (fill_baptism_text conf p p_auth) else None;
-        piqi_fiche_person.Mread.Fiche_person.has_possible_duplications <- has_duplication_if_is_main_person conf base p is_main_person;
-        piqi_fiche_person.Mread.Fiche_person.ref_index <- ref_index;
-        piqi_fiche_person.Mread.Fiche_person.ref_person <- ref_person;
-        piqi_fiche_person.Mread.Fiche_person.has_history <- has_history_if_is_main_person conf base p p_auth is_main_person;
-        piqi_fiche_person.Mread.Fiche_person.linked_page_biblio <- linked_page_biblio;
-        piqi_fiche_person.Mread.Fiche_person.linked_page_bnote <- linked_page_bnote;
-        piqi_fiche_person.Mread.Fiche_person.linked_page_death <- linked_page_death;
-        piqi_fiche_person.Mread.Fiche_person.linked_page_head <- linked_page_head;
-        piqi_fiche_person.Mread.Fiche_person.linked_page_occu <- linked_page_occu;
-        piqi_fiche_person.Mread.Fiche_person.visible_for_visitors <- is_visible conf base p;
-        piqi_fiche_person.Mread.Fiche_person.related <- if is_main_person && not simple_graph_info then get_related_piqi conf base p base_prefix gen_p has_relations pers_to_piqi_fiche_person_only fiche_relation_person_constructor else [];
-        piqi_fiche_person.Mread.Fiche_person.rparents <- if is_main_person && not simple_graph_info then get_rparents_piqi base conf base_prefix gen_p has_relations pers_to_piqi_fiche_person_only fiche_relation_person_constructor else [];
-        if not no_event then
-          piqi_fiche_person.Mread.Fiche_person.events_witnesses <- if is_main_person then get_events_witnesses conf base p base_prefix gen_p p_auth has_relations pers_to_piqi_fiche_person_only fiche_event_witness_constructor else [];
-        if not no_event then
-          piqi_fiche_person.Mread.Fiche_person.events <- fill_events_if_is_main_person conf base p base_prefix p_auth is_main_person pers_to_piqi_fiche_person_only fiche_witness_constructor fiche_event_constructor;
-        piqi_fiche_person
-      in
-      {
-        Mread.Person.type_ = `fiche;
-        fiche_person_person = Some piqi_fiche_person;
-        n = fill_sn conf base p p_auth;
-        p = fill_fn conf base p p_auth;
-        occ = fill_occ p;
+    aliases = if return_simple_attributes && not simple_graph_info then fill_aliases gen_p else [];
+    baptism_src = Opt.of_string baptism_src;
+    birth_place = Opt.of_string (fill_birth_place conf gen_p);
+    birth_src = Opt.of_string birth_src;
+    burial_place = Opt.of_string (fill_burial_place conf gen_p);
+    burial_src = Opt.of_string burial_src;
+    death_date = Opt.of_string death_date;
+    death_date_conv = Opt.of_string death_date_conv;
+    death_date_cal = death_cal;
+    death_place = Opt.of_string (fill_death_place conf gen_p);
+    death_src = Opt.of_string death_src;
+    death_type = death_type;
+    index = fill_index p;
+    image = fill_image conf base p;
+    firstname = fill_firstname gen_p;
+    lastname = fill_surname gen_p;
+    qualifiers = if (not simple_graph_info) || is_main_person then fill_qualifiers gen_p else [];
+    occupation = Opt.of_string (fill_occupation conf base gen_p);
+    sex = fill_sex p;
+    public_name = fill_publicname gen_p;
 
-        aliases = if return_simple_attributes && not simple_graph_info then fill_aliases p_auth gen_p else [];
-        baptism_src = transform_empty_string_to_None baptism_src;
-        birth_place = transform_empty_string_to_None (fill_birth_place conf p_auth gen_p);
-        birth_src = transform_empty_string_to_None birth_src;
-        burial_place = transform_empty_string_to_None (fill_burial_place conf p_auth gen_p);
-        burial_src = transform_empty_string_to_None burial_src;
-        death_date = transform_empty_string_to_None death_date;
-        death_date_conv = transform_empty_string_to_None death_date_conv;
-        death_date_cal = death_cal;
-        death_place = transform_empty_string_to_None (fill_death_place conf p_auth gen_p);
-        death_src = transform_empty_string_to_None death_src;
-        death_type = death_type;
-        index = fill_index conf p p_auth;
-        image = transform_empty_string_to_None (fill_image conf base p);
-        firstname = fill_firstname conf p p_auth gen_p;
-        lastname = fill_surname conf p p_auth gen_p;
-        qualifiers = if (not simple_graph_info) || is_main_person then fill_qualifiers p_auth gen_p else [];
-        occupation = transform_empty_string_to_None (fill_occupation conf base p_auth gen_p);
-        sex = fill_sex p;
-        public_name = fill_publicname p_auth gen_p;
+    (* Fields only filled for the main person. *)
+    baptism_place = if is_main_person then Opt.of_string (fill_baptism_place conf gen_p) else None;
+    firstname_aliases = if is_main_person && not simple_graph_info then fill_firstname_aliases gen_p else [];
+    has_sources = has_sources;
+    notes = if is_main_person && not simple_graph_info then Opt.of_string (fill_notes conf base p is_main_person gen_p) else None;
+    psources = if is_main_person && not simple_graph_info then Opt.of_string psources else None;
+    sosa = if is_main_person then fill_sosa p else `no_sosa;
+    surname_aliases = if is_main_person && not simple_graph_info then fill_surname_aliases gen_p else [];
 
-        (* Fields only filled for the main person. *)
-        baptism_place = if is_main_person then transform_empty_string_to_None (fill_baptism_place conf p_auth gen_p) else None;
-        firstname_aliases = if is_main_person && not simple_graph_info then fill_firstname_aliases p_auth gen_p else [];
-        has_sources = has_sources;
-        notes = if is_main_person && not simple_graph_info then transform_empty_string_to_None (fill_notes conf base p p_auth is_main_person gen_p) else None;
-        psources = if is_main_person && not simple_graph_info then transform_empty_string_to_None psources else None;
-        sosa = if is_main_person then fill_sosa p else `no_sosa;
-        surname_aliases = if is_main_person && not simple_graph_info then fill_surname_aliases p_auth gen_p else [];
-
-        (* These fields should not be set because Fiche Person fields are better. *)
-        baptism_date = None;
-        baptism_date_conv = None;
-        baptism_date_cal = None;
-        birth_date = None;
-        birth_date_conv = None;
-        birth_date_cal = None;
-        burial_date = None;
-        burial_date_conv = None;
-        burial_date_cal = None;
-        events = if return_simple_attributes && not no_event then fill_events conf base p base_prefix p_auth pers_to_piqi_simple_person simple_witness_constructor get_event_constructor else [];
-        events_witnesses = if return_simple_attributes && not no_event then get_events_witnesses conf base p base_prefix gen_p p_auth has_relations pers_to_piqi_simple_person simple_event_witness_constructor else [];
-        families = if return_simple_attributes && not simple_graph_info then fill_families conf base p else [];
-        father = if return_simple_attributes then father else None;
-        mother = if return_simple_attributes then mother else None;
-        titles = if not simple_graph_info then fill_titles conf base p else [];
-        related = if return_simple_attributes then get_related_piqi conf base p base_prefix gen_p has_relations pers_to_piqi_simple_person simple_relation_person_constructor else [];
-        rparents = if return_simple_attributes then get_rparents_piqi base conf base_prefix gen_p has_relations pers_to_piqi_simple_person simple_relation_person_constructor else [];
-        baseprefix = base_prefix;
-      }
-    end
+    (* These fields should not be set because Fiche Person fields are better. *)
+    baptism_date = None;
+    baptism_date_conv = None;
+    baptism_date_cal = None;
+    birth_date = None;
+    birth_date_conv = None;
+    birth_date_cal = None;
+    burial_date = None;
+    burial_date_conv = None;
+    burial_date_cal = None;
+    events = if return_simple_attributes && not no_event then fill_events conf base p base_prefix pers_to_piqi_simple_person simple_witness_constructor get_event_constructor else [];
+    events_witnesses = if return_simple_attributes && not no_event then get_events_witnesses conf base p base_prefix gen_p has_relations pers_to_piqi_simple_person simple_event_witness_constructor else [];
+    families = if return_simple_attributes && not simple_graph_info then fill_families conf base p else [];
+    father = if return_simple_attributes then father else None;
+    mother = if return_simple_attributes then mother else None;
+    titles = if not simple_graph_info then fill_titles conf base p else [];
+    related = if return_simple_attributes then get_related_piqi conf base p base_prefix gen_p has_relations pers_to_piqi_simple_person simple_relation_person_constructor else [];
+    rparents = if return_simple_attributes then get_rparents_piqi base conf base_prefix gen_p has_relations pers_to_piqi_simple_person simple_relation_person_constructor else [];
+    baseprefix = base_prefix;
+  }
 
 (* ********************************************************************* *)
 (*  [Fonc] print_person_tree : conf -> base -> unit                      *)
@@ -2180,26 +1999,12 @@ let search_index conf base an search_order =
 (* ********************************************************************* *)
 let print_result_fiche_person conf base ip nb_asc_max nb_desc_max simple_graph_info no_event =
   let () = Perso.build_sosa_ht conf base in
-  let p = poi base ip in
+  let p = pget conf base ip in
   (* cache lien inter arbre *)
   let () = Perso_link.init_cache conf base ip 1 1 1 in
   let pers_piqi = pers_to_piqi_fiche_person conf base p conf.command true 0 nb_asc_max 0 nb_desc_max true simple_graph_info no_event in
   let data = Mext_read.gen_person pers_piqi in
   print_result conf data
-
-(* ********************************************************************* *)
-(*  [Fonc] is_private_person : conf -> base -> ip -> bool                 *)
-(** [Description] : Indique si une personne est privée ou non.
-    [Args] :
-      - conf  : configuration de la base
-      - base  : base de donnée
-      - ip    : index de la personne
-    [Retour] : Bool
-    [Rem] : Non exporté en clair hors de ce module.                      *)
-(* ********************************************************************* *)
-let is_private_person conf base ip =
-    let p = pget conf base ip in
-    is_hidden p || ((is_hide_names conf p) && not(authorized_age conf base p))
 
 (* ********************************************************************* *)
 (*  [Fonc] print_from_identifier_person : conf -> base ->                *)
@@ -2236,18 +2041,14 @@ let print_from_identifier_person conf base print_result_from_ip identifier_perso
           begin
             match Gwdb.person_of_key base fn sn (Int32.to_int oc) with
             | Some ip ->
-              if is_private_person conf base ip
-              then
-                print_error conf `not_found
-              else
-                (if identifier_person.Mread.Identifier_person.track_visit
-                    = Some true
-                 then record_visited conf ip;
-                 print_result_from_ip conf base ip)
+              if identifier_person.Mread.Identifier_person.track_visit = Some true
+              then record_visited conf ip ;
+              print_result_from_ip conf base ip
             | None ->
               print_error conf `not_found
           end
-        | _ -> print_error conf `bad_request
+        | _ ->
+          print_error conf `bad_request
         end
     | None ->
       (* Fait une recherche par mots-clé *)
@@ -2285,6 +2086,7 @@ let print_from_identifier_person conf base print_result_from_ip identifier_perso
 (* ********************************************************************* *)
 let print_fiche_person conf base =
   let fiche_parameters = get_params conf Mext_read.parse_fiche_parameters in
+  let _params = Mext_read.gen_fiche_parameters fiche_parameters in
   let identifier_person = fiche_parameters.Mread.Fiche_parameters.identifier_person in
   let print_result_from_ip conf base ip =
       let nb_asc_max =
@@ -3231,45 +3033,7 @@ let print_result_graph_tree_v2 conf base ip =
     [Rem] : Non exporté en clair hors de ce module.                           *)
 (* ************************************************************************** *)
 let pers_to_piqi_person_tree_full conf base p more_info gen max_gen base_prefix =
-  if is_restricted conf base (get_key_index p) then
-    {
-      Mread.Person_tree_full.index = Int32.of_int (-1);
-      sex = `unknown;
-      lastname = "x";
-      firstname = "x";
-      n = "";
-      p = "";
-      occ = Int32.of_int 0;
-      image = None;
-      sosa = `no_sosa;
-      public_name = None;
-      aliases = [];
-      qualifiers = [];
-      firstname_aliases = [];
-      surname_aliases = [];
-      birth_date = None;
-      birth_place = None;
-      birth_src = None;
-      baptism_date = None;
-      baptism_place = None;
-      baptism_src = None;
-      death_date = None;
-      death_place = None;
-      death_src = None;
-      death_type = `dont_know_if_dead;
-      burial_date = None;
-      burial_place = None;
-      burial_src = None;
-      occupation = None;
-      psources = None;
-      titles = [];
-      visible_for_visitors = false;
-      has_more_infos = false;
-      baseprefix = "";
-    }
-  else
     let gen_p = Util.string_gen_person base (gen_person_of_person p) in
-    let p_auth = authorized_age conf base p in
     let index = Int32.of_int (Adef.int_of_iper gen_p.key_index) in
     let sex =
       match gen_p.sex with
@@ -3285,19 +3049,10 @@ let pers_to_piqi_person_tree_full conf base p more_info gen max_gen base_prefix 
         else if Sosa.eq sosa_nb Sosa.one then `sosa_ref
         else `sosa
     in
-    let sn =
-      if (is_hide_names conf p) && not p_auth then ""
-      else Name.lower gen_p.surname
-    in
-    let fn =
-      if (is_hide_names conf p) && not p_auth then ""
-      else Name.lower gen_p.first_name
-    in
+    let sn = fill_sn base p in
+    let fn = fill_fn base p in
     let occ = Int32.of_int (get_occ p) in
-    let (first_name, surname) =
-      if not p_auth && (is_hide_names conf p) then ("x", "x")
-      else person_firstname_surname_txt base p
-    in
+    let (first_name, surname) = person_firstname_surname_txt base p in
     let image =
       if has_image conf base p then
         let img = gen_p.image in
@@ -3315,70 +3070,33 @@ let pers_to_piqi_person_tree_full conf base p more_info gen max_gen base_prefix 
     let qualifiers = gen_p.qualifiers in
     let firstname_aliases = gen_p.first_names_aliases in
     let surname_aliases = gen_p.surnames_aliases in
-    let birth =
-      match Adef.od_of_cdate gen_p.birth with
-      | Some d when p_auth -> Some (string_of_date d)
-      | _ -> None
-    in
-    let birth_place =
-      if p_auth then Some gen_p.birth_place
-      else None
-    in
-    let birth_src =
-      if p_auth then Some gen_p.birth_src
-      else None
-    in
-    let baptism =
-      match Adef.od_of_cdate gen_p.baptism with
-      | Some d when p_auth -> Some (string_of_date d)
-      | _ -> None
-    in
-    let baptism_place =
-      if p_auth then Some gen_p.baptism_place
-      else None
-    in
-    let baptism_src =
-      if p_auth then Some gen_p.baptism_src
-      else None
-    in
+    let birth = Opt.map string_of_date (Adef.od_of_cdate gen_p.birth) in
+    let birth_place = Opt.of_string gen_p.birth_place in
+    let birth_src = Opt.of_string gen_p.birth_src in
+    let baptism = Opt.map string_of_date (Adef.od_of_cdate gen_p.baptism) in
+    let baptism_place = Opt.of_string gen_p.baptism_place in
+    let baptism_src = Opt.of_string gen_p.baptism_src in
     let (death_type, death) =
-      if p_auth then
-        match gen_p.death with
-        | NotDead -> (`not_dead, None)
-        | Death (_, cd) ->
-            let d = Adef.date_of_cdate cd in
-            (`dead, Some (string_of_date d))
-        | DeadYoung -> (`dead_young, None)
-        | DeadDontKnowWhen -> (`dead_dont_know_when, None)
-        | DontKnowIfDead -> (`dont_know_if_dead, None)
-        | OfCourseDead -> (`of_course_dead, None)
-      else
-        (`not_dead, None)
+      match gen_p.death with
+      | NotDead -> (`not_dead, None)
+      | Death (_, cd) ->
+        let d = Adef.date_of_cdate cd in
+        (`dead, Some (string_of_date d))
+      | DeadYoung -> (`dead_young, None)
+      | DeadDontKnowWhen -> (`dead_dont_know_when, None)
+      | DontKnowIfDead -> (`dont_know_if_dead, None)
+      | OfCourseDead -> (`of_course_dead, None)
     in
-    let death_place =
-      if p_auth then Some gen_p.death_place
-      else None
-    in
-    let death_src =
-      if p_auth then Some gen_p.death_src
-      else None
-    in
+    let death_place = Opt.of_string gen_p.death_place in
+    let death_src = Opt.of_string gen_p.death_src in
     let burial =
       match get_burial p with
       | Buried cod | Cremated cod ->
-          (match Adef.od_of_cdate cod with
-          | Some d when p_auth -> Some (string_of_date d)
-          | _ -> None)
+        Opt.map string_of_date (Adef.od_of_cdate cod)
       | _ -> None
     in
-    let burial_place =
-      if p_auth then Some gen_p.burial_place
-      else None
-    in
-    let burial_src =
-      if p_auth then Some gen_p.burial_src
-      else None
-    in
+    let burial_place = Opt.of_string gen_p.burial_place in
+    let burial_src = Opt.of_string gen_p.burial_src in
     let titles =
       List.map
         (fun t ->
@@ -3412,14 +3130,8 @@ let pers_to_piqi_person_tree_full conf base p more_info gen max_gen base_prefix 
           }))
         gen_p.titles
     in
-    let occupation =
-      if p_auth then Some gen_p.occupation
-      else None
-    in
-    let psources =
-      if p_auth then Some gen_p.psources
-      else None
-    in
+    let occupation = Opt.of_string gen_p.occupation in
+    let psources = Opt.of_string gen_p.psources in
     let visible = is_visible conf base p in
     let has_more_infos =
       match more_info with

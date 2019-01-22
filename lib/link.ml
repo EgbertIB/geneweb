@@ -74,6 +74,7 @@ let chop_base_prefix base_prefix =
 let init_cache conf base request base_prefix ip nb_asc from_gen_desc nb_desc =
   let index = Some (Int32.of_int (Adef.int_of_iper ip)) in
   let base_prefix = chop_base_prefix base_prefix in
+  Log.with_log (fun oc -> Printf.fprintf oc "%d: %s: %s: %d\n" (Unix.getpid ()) __LOC__ base_prefix (Adef.int_of_iper ip));
   let data =
     MLink.Link_tree_params.({
       basename = base_prefix;
@@ -88,9 +89,10 @@ let init_cache conf base request base_prefix ip nb_asc from_gen_desc nb_desc =
   let data = MLinkext.gen_link_tree_params data `pb in
   let url =
     Printf.sprintf
-      "http://%s:%d/%s?m=API_LINK_TREE&input=pb&output=pb&sig=azerty&data=%s"
+      "http://%s:%d/%s?m=API_LINK_TREE&input=pb&output=pb&data=%s"
       conf.api_host conf.api_port base_prefix (Wserver.encode data)
   in
+  Log.with_log (fun oc -> Printf.fprintf oc "%d: %s: %s\n" (Unix.getpid ()) __LOC__ url);
   let res = ref "" in
   Curl.global_init Curl.CURLINIT_GLOBALALL;
   begin
@@ -172,6 +174,7 @@ let init_cache conf base request base_prefix ip nb_asc from_gen_desc nb_desc =
        let key =
          sn ^ "|" ^ fn ^ "|" ^ if occ > 0 then string_of_int occ else ""
        in
+       Log.with_log (fun oc -> Printf.fprintf oc "%d: %s: %s\n" (Unix.getpid ()) __LOC__ key) ;
        Hashtbl.add ht (base_prefix, key) ip)
     families.MLink.Link_tree.persons;
 

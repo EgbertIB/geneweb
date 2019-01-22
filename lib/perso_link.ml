@@ -169,6 +169,8 @@ let make_ep_link base p_link =
   let first_name = Gwdb.insert_string base p_link.MLink.Person.firstname in
   let occ = Int32.to_int p_link.MLink.Person.oc in
   let key_index = Adef.iper_of_int (Int32.to_int p_link.MLink.Person.ip) in
+  Log.with_log (fun oc -> Printf.fprintf oc "%s: %s %s %d %d\n"  __LOC__ (Gwdb.sou base surname) (Gwdb.sou base first_name) occ
+               (Adef.int_of_iper key_index) ) ;
   let image =
     match p_link.MLink.Person.image with
       Some s -> Gwdb.insert_string base s
@@ -259,6 +261,11 @@ let make_ep_link base p_link =
      death_place = death_place; burial = burial; burial_place = burial_place}
   in
   let p = Gwdb.person_of_gen_person base (gen_p, empty_ascend, empty_union) in
+  Log.with_log (fun oc -> Printf.fprintf oc "%s: %s %s %d %d\n"  __LOC__
+                   (Gwdb.sou base @@ Gwdb.get_surname p)
+                   (Gwdb.sou base @@ Gwdb.get_first_name p)
+                   (Gwdb.get_occ p)
+                   (Adef.int_of_iper @@ Gwdb.get_key_index p) ) ;
   p, true
 
 let make_efam_link conf base fam_link =
@@ -361,12 +368,17 @@ let get_person_link_with_base base_prefix ip base_distante =
 (* ************************************************************************** *)
 let get_person_link base_prefix ip =
   let base_prefix = Link.chop_base_prefix base_prefix in
-  try Some (Hashtbl.find Link.ht_person_cache (base_prefix, ip)) with
+  Log.with_log (fun oc -> Printf.fprintf oc "%s: %s %d\n" __LOC__ base_prefix @@ Adef.int_of_iper ip);
+  try
+    let x = Hashtbl.find Link.ht_person_cache (base_prefix, ip) in
+    Log.with_log (fun oc -> Printf.fprintf oc "%s: %s %d\n" __LOC__ base_prefix @@ Adef.int_of_iper ip);
+    Some x with
     Not_found ->
       try
         let (base_prefix, ip) =
           Hashtbl.find Link.ht_corresp (base_prefix, ip)
         in
+        Log.with_log (fun oc -> Printf.fprintf oc "%s: %s %d\n" __LOC__ base_prefix @@ Adef.int_of_iper ip);
         Some (Hashtbl.find Link.ht_person_cache (base_prefix, ip))
       with Not_found -> None
 
@@ -411,6 +423,7 @@ let get_persons_link base_prefix ip =
 (* ************************************************************************** *)
 let get_parents_link base_prefix ip =
   let base_prefix = Link.chop_base_prefix base_prefix in
+  Log.with_log (fun oc -> Printf.fprintf oc "%d: %s: %s %d\n" (Unix.getpid ()) __LOC__ base_prefix @@ Adef.int_of_iper ip) ;
   try Some (Hashtbl.find Link.ht_parents_cache (base_prefix, ip)) with
     Not_found ->
       try
@@ -702,8 +715,8 @@ let can_merge_child base_prefix children c_link =
 (* ************************************************************************** *)
 let init_cache conf base ip nb_asc from_gen_desc nb_desc =
   (* Option pour activer/desactiver totalement le cache. *)
-  let init = Wserver.extract_param "links-tree: " '\n' conf.request in
-  if init = "1" then
+  (* let init = Wserver.extract_param "links-tree: " '\n' conf.request in
+   * if init = "1" then *)
     Link.init_cache conf base conf.request conf.bname ip nb_asc from_gen_desc
       nb_desc
 
