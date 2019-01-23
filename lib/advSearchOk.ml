@@ -367,7 +367,7 @@ let print_result conf base max_answers (list, len) =
          html_li conf;
          Perso.print_sosa conf base p true;
          Wserver.printf "\n%s" (referenced_person_text conf base p);
-         Wserver.printf "%s" (Date.short_dates_text conf base p);
+         Wserver.printf "%s" (Date_text.short_dates_text conf base p);
          Wserver.printf "<em>";
          specify_homonymous conf base p false;
          Wserver.printf "</em>")
@@ -410,14 +410,14 @@ let searching_fields conf =
       match getd date_prefix_field_name with
         Some d1, Some d2 ->
           Printf.sprintf "%s %s %s %s %s" search
-            (transl conf "between (date)") (Date.string_of_date conf d1)
-            (transl conf "and") (Date.string_of_date conf d2)
+            (transl conf "between (date)") (Date_text.string_of_date conf d1)
+            (transl conf "and") (Date_text.string_of_date conf d2)
       | Some d1, _ ->
           Printf.sprintf "%s %s %s" search (transl conf "after (date)")
-            (Date.string_of_date conf d1)
+            (Date_text.string_of_date conf d1)
       | _, Some d2 ->
           Printf.sprintf "%s %s %s" search (transl conf "before (date)")
-            (Date.string_of_date conf d2)
+            (Date_text.string_of_date conf d2)
       | _ -> search
     in
     if test_string place_prefix_field_name then

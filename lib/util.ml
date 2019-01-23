@@ -519,7 +519,7 @@ let authorized_age_internal get_access get_birth get_baptism get_death conf p =
   else
     let check_date none = function
       | Some (Dgreg (d, _)) ->
-        strictly_after_private_years conf (CheckItem.time_elapsed d conf.today)
+        strictly_after_private_years conf (Date.time_elapsed d conf.today)
       | _ -> none ()
     in
     check_date
@@ -528,7 +528,7 @@ let authorized_age_internal get_access get_birth get_baptism get_death conf p =
            (fun () ->
               check_date
                 (fun () -> death = DontKnowIfDead && get_access p <> Private && conf.public_if_no_date)
-                (CheckItem.date_of_death death) )
+                (Date.date_of_death death) )
            (Adef.od_of_cdate (get_baptism p)) )
       (Adef.od_of_cdate (get_birth p))
 
@@ -559,7 +559,7 @@ let authorized_age conf base p =
   let rec loop i =
     i < len
     && match Adef.od_of_cdate (get_marriage @@ foi base (Array.get families i)) with
-    | Some (Dgreg (d, _)) when strictly_after_private_years conf (CheckItem.time_elapsed d conf.today) -> true
+    | Some (Dgreg (d, _)) when strictly_after_private_years conf (Date.time_elapsed d conf.today) -> true
     | _ -> loop (i + 1 )
   in
   loop 0
@@ -2183,7 +2183,7 @@ let get_approx_birth_date_place conf base p =
   get_approx_date_place birth birth_place baptism baptism_place
 
 let get_approx_death_date_place conf base p =
-  let death = CheckItem.date_of_death (get_death p) in
+  let death = Date.date_of_death (get_death p) in
   let death_place = string_of_place conf (sou base (get_death_place p)) in
   let buri =
     match get_burial p with

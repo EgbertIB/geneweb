@@ -32,7 +32,7 @@ let date_interval conf base t x =
       Some (Dgreg (d, _)) -> set d
     | _ -> ()
     end;
-    begin match CheckItem.date_of_death (get_death x) with
+    begin match Date.date_of_death (get_death x) with
       Some (Dgreg (d, _)) -> set d
     | _ -> if get_death x = NotDead then set conf.today
     end;
@@ -302,7 +302,7 @@ let give_access_someone conf base (x, t) list =
   | _ -> Wserver.printf "%s" (person_text conf base x)
   end;
   Wserver.printf "\n";
-  Wserver.printf "%s" (Date.short_dates_text conf base x);
+  Wserver.printf "%s" (Date_text.short_dates_text conf base x);
   if t.t_nth <> 0 then
     Wserver.printf " (%s)"
       (if t.t_nth >= 100 then string_of_int t.t_nth

@@ -20,7 +20,7 @@ let oldest_year_of p =
     | Some (Dgreg (d, _)) -> Some d.year
     | _ -> match Adef.od_of_cdate (get_baptism p) with
       | Some (Dgreg (d, _)) -> Some d.year
-      | _ -> match CheckItem.date_of_death death with
+      | _ -> match Date.date_of_death death with
         | Some (Dgreg (d, _)) -> Some d.year
         | _ -> None
 
@@ -32,7 +32,7 @@ let oldest_year_of p =
 let most_recent_year_of p =
   match get_death p with
   | NotDead -> None
-  | death -> match CheckItem.date_of_death death with
+  | death -> match Date.date_of_death death with
     | Some (Dgreg (d, _)) -> Some d.year
     | _ -> match Adef.od_of_cdate (get_baptism p) with
       | Some (Dgreg (d, _)) -> Some d.year

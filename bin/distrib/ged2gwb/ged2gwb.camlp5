@@ -114,7 +114,7 @@ let couple _ x y = Adef.couple x y
 
 let strictly_after = CheckItem.strictly_after
 let strictly_before_dmy = CheckItem.strictly_before_dmy
-let date_of_death = CheckItem.date_of_death
+let date_of_death = Date.date_of_death
 let year_of d = d.year
 
 let log_oc = ref stdout

@@ -637,7 +637,7 @@ let pers_to_piqi_simple_person conf base p =
   let sosa = fill_sosa p in
   let (birth_short, birth_place, death_short, death_place) =
     let (birth_date, death_date, _) = Date.get_birth_death_date p in
-    let birth = Opt.map (Date.string_slash_of_date conf) birth_date in
+    let birth = Opt.map (Date_text.string_slash_of_date conf) birth_date in
     let birth_place =
       let birth_place = sou base (get_birth_place p) in
       if birth_place <> "" then Util.string_of_place conf birth_place
@@ -645,7 +645,7 @@ let pers_to_piqi_simple_person conf base p =
         let baptism_place = sou base (get_baptism_place p) in
         Util.string_of_place conf baptism_place
     in
-    let death = Opt.map (Date.string_slash_of_date conf) death_date  in
+    let death = Opt.map (Date_text.string_slash_of_date conf) death_date  in
     let death_place =
       let death_place = sou base (get_death_place p) in
       if death_place <> "" then Util.string_of_place conf death_place

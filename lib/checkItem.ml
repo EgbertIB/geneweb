@@ -23,71 +23,8 @@ let min_age_marriage = 13
 let average_marriage_age = 20
 
 
-let common_prec p1 p2 =
-  if p1 = p2 then p1
-  else
-    match p1, p2 with
-      Sure, _ -> p2
-    | _, Sure -> p1
-    | _ -> Maybe
-
-let leap_year a = if a mod 100 = 0 then a / 100 mod 4 = 0 else a mod 4 = 0
-
-let nb_days_in_month =
-  let tb = [| 31; 28; 31; 30; 31; 30; 31; 31; 30; 31; 30; 31 |] in
-  fun m a ->
-    if m = 2 && leap_year a then 29
-    else if m >= 1 && m <= 12 then tb.(m-1)
-    else 0
-
-let time_elapsed d1 d2 =
-  let prec = common_prec d1.prec d2.prec in
-  match d1 with
-    {day = 0; month = 0; year = a1} ->
-      {day = 0; month = 0; year = d2.year - a1; prec = prec; delta = 0}
-  | {day = 0; month = m1; year = a1} ->
-      begin match d2 with
-        {day = 0; month = 0; year = a2} ->
-          {day = 0; month = 0; year = a2 - a1; prec = prec; delta = 0}
-      | {day = 0; month = m2; year = a2} ->
-          let r = 0 in
-          let (month, r) =
-            if m1 + r <= m2 then m2 - m1 - r, 0 else m2 - m1 - r + 12, 1
-          in
-          let year = a2 - a1 - r in
-          {day = 0; month = month; year = year; prec = prec; delta = 0}
-      | {month = m2; year = a2} ->
-          let r = 0 in
-          let (month, r) =
-            if m1 + r <= m2 then m2 - m1 - r, 0 else m2 - m1 - r + 12, 1
-          in
-          let year = a2 - a1 - r in
-          {day = 0; month = month; year = year; prec = prec; delta = 0}
-      end
-  | {day = j1; month = m1; year = a1} ->
-      match d2 with
-        {day = 0; month = 0; year = a2} ->
-          {day = 0; month = 0; year = a2 - a1; prec = prec; delta = 0}
-      | {day = 0; month = m2; year = a2} ->
-          let r = 0 in
-          let (month, r) =
-            if m1 + r <= m2 then m2 - m1 - r, 0 else m2 - m1 - r + 12, 1
-          in
-          let year = a2 - a1 - r in
-          {day = 0; month = month; year = year; prec = prec; delta = 0}
-      | {day = j2; month = m2; year = a2} ->
-          let (day, r) =
-            if j1 <= j2 then j2 - j1, 0
-            else j2 - j1 + nb_days_in_month m1 a1, 1
-          in
-          let (month, r) =
-            if m1 + r <= m2 then m2 - m1 - r, 0 else m2 - m1 - r + 12, 1
-          in
-          let year = a2 - a1 - r in
-          {day = day; month = month; year = year; prec = prec; delta = 0}
-
 let strictly_before_dmy d1 d2 =
-  let {day = d; month = m; year = y} = time_elapsed d2 d1 in
+  let {day = d; month = m; year = y} = Date.time_elapsed d2 d1 in
   if y < 0 then true
   else if y > 0 then false
   else if m < 0 then true
@@ -104,7 +41,7 @@ let strictly_before d1 d2 =
   | _ -> false
 
 let strictly_after_dmy d1 d2 =
-  let {day = d; month = m; year = y} = time_elapsed d1 d2 in
+  let {day = d; month = m; year = y} = Date.time_elapsed d1 d2 in
   if y < 0 then true
   else if y > 0 then false
   else if m < 0 then true
@@ -119,43 +56,6 @@ let strictly_after d1 d2 =
   match d1, d2 with
     Dgreg (d1, _), Dgreg (d2, _) -> strictly_after_dmy d1 d2
   | _ -> false
-
-(* ********************************************************************** *)
-(*  [Fonc] compare_date : date -> date -> int                             *)
-(** [Description] : Fonction de comparaison de deux dates. On ne tiens
-                    pas compte de la précision de la date. (Fonction
-                    identique à Date.ml)
-    [Args] :
-      - d1 : la première date
-      - d2 : la deuxième date
-    [Retour] : int
-    [Rem] : Non exporté en clair hors de ce module.                       *)
-(* ********************************************************************** *)
-let compare_date d1 d2 =
-  match d1, d2 with
-    Dgreg (dmy1, _), Dgreg (dmy2, _) ->
-      begin match Pervasives.compare dmy1.year dmy2.year with
-        0 ->
-          begin match Pervasives.compare dmy1.month dmy2.month with
-            0 ->
-              (* Si l'une des deux dates n'est pas complète (mois ou jour *)
-              (* égal à zéro), alors on ne distingue pas les deux dates.  *)
-              if dmy1.day = 0 || dmy2.day = 0 then 0
-              else Pervasives.compare dmy1.day dmy2.day
-          | x ->
-              (* Idem ci-dessus. *)
-              if dmy1.month = 0 || dmy2.month = 0 then 0 else x
-          end
-      | x -> x
-      end
-  | Dgreg (_, _), Dtext _ -> 1
-  | Dtext _, Dgreg (_, _) -> -1
-  | Dtext _, Dtext _ -> 0
-
-let date_of_death =
-  function
-    Death (_, cd) -> Some (Adef.date_of_cdate cd)
-  | _ -> None
 
 type 'string event_name =
     Psort of 'string gen_pers_event_name
@@ -308,9 +208,9 @@ let check_person_age base warning p =
     | _ -> false
   in
   if is_dead then
-    match first_found_date, date_of_death (get_death p) with
+    match first_found_date, Date.date_of_death (get_death p) with
       Some d1, Some (Dgreg (d2, _)) ->
-        let a = time_elapsed d1 d2 in
+        let a = Date.time_elapsed d1 d2 in
         if d2.year > lim_date_death then
           (if a.year > max_death_after_lim_date_death then
              warning (DeadOld (p, a)))
@@ -428,7 +328,7 @@ let check_difference_age_between_cpl base warning ifath imoth =
   in
   match find_date fath, find_date moth with
     Some d1, Some d2 ->
-      let a = time_elapsed d1 d2 in
+      let a = Date.time_elapsed d1 d2 in
       if a.year > max_age_btw_cpl then
         warning (BigAgeBetweenSpouses (fath, moth, a))
   | _ -> ()
@@ -446,9 +346,9 @@ let check_normal_marriage_date_for_someone base warning witn fam ip =
             else warning (MarriageDateBeforeBirth p)
           else if
             not witn && year_of g2 > lim_date_marriage &&
-            year_of (time_elapsed g1 g2) < min_age_marriage
+            year_of (Date.time_elapsed g1 g2) < min_age_marriage
           then
-            warning (YoungForMarriage (p, time_elapsed g1 g2))
+            warning (YoungForMarriage (p, Date.time_elapsed g1 g2))
       | _ -> ()
       end;
       begin match get_death p with
@@ -644,7 +544,7 @@ let check_marriages_order base warning p =
          let max_date =
            match date, max_date with
              Some d1, Some d2 ->
-               if compare_date d1 d2 = 1 then Some d1 else Some d2
+               if Date.compare_date d1 d2 = 1 then Some d1 else Some d2
            | Some d1, None -> Some d1
            | _ -> max_date
          in
@@ -654,7 +554,7 @@ let check_marriages_order base warning p =
   Array.stable_sort
     (fun (_f1, d1) (_f2, d2) ->
        match d1, d2 with
-         Some d1, Some d2 -> compare_date d1 d2
+         Some d1, Some d2 -> Date.compare_date d1 d2
        | _ -> 0)
     a;
   let a = Array.map (fun (f, _) -> f) a in
@@ -674,7 +574,7 @@ let close_siblings warning x np ifam des =
   | Some (elder, d1), Some d2 ->
       begin match d1, d2 with
         Dgreg (d1, _), Dgreg (d2, _) ->
-          let d = time_elapsed d1 d2 in
+          let d = Date.time_elapsed d1 d2 in
           (* On vérifie les jumeaux ou naissances proches. *)
           if d.year = 0 && d.month = 0 && d.day < max_days_btw_sibl then ()
           else if d.year = 0 && d.month < max_month_btw_sibl then
@@ -699,12 +599,12 @@ let child_born_after_his_parent base warning x iparent =
   let parent = poi base iparent in
   match
     Adef.od_of_cdate (get_birth parent), Adef.od_of_cdate (get_birth x),
-    date_of_death (get_death x)
+    Date.date_of_death (get_death x)
   with
     Some (Dgreg (g1, _) as d1), Some (Dgreg (g2, _) as d2), _ ->
       if strictly_after d1 d2 then warning (ParentBornAfterChild (parent, x))
       else
-        let a = time_elapsed g1 g2 in
+        let a = Date.time_elapsed g1 g2 in
         if year_of a < min_parent_age then
           warning (ParentTooYoung (parent, a))
         else if
@@ -715,7 +615,7 @@ let child_born_after_his_parent base warning x iparent =
   | Some (Dgreg (g1, _) as d1), _, Some (Dgreg (g2, _) as d2) ->
       if strictly_after d1 d2 then warning (ParentBornAfterChild (parent, x))
       else
-        let a = time_elapsed g1 g2 in
+        let a = Date.time_elapsed g1 g2 in
         if year_of a < min_parent_age then
           warning (ParentTooYoung (parent, a))
   | _ -> ()
@@ -731,7 +631,7 @@ let child_born_before_mother_death base warning x imoth =
 
 let possible_father base warning x ifath =
   let father = poi base ifath in
-  match Adef.od_of_cdate (get_birth x), date_of_death (get_death father) with
+  match Adef.od_of_cdate (get_birth x), Date.date_of_death (get_death father) with
     Some (Dgreg ({prec = Before}, _)), _ |
     _, Some (Dgreg ({prec = After}, _)) ->
       ()
@@ -912,9 +812,9 @@ let check_marriage_age base warning (_ifam, fam) ip =
                 begin match Adef.od_of_cdate (get_birth p) with
                   Some (Dgreg (g1, _)) ->
                     if year_of g2 > lim_date_marriage &&
-                       year_of (time_elapsed g1 g2) < min_age_marriage
+                       year_of (Date.time_elapsed g1 g2) < min_age_marriage
                     then
-                      warning (YoungForMarriage (p, time_elapsed g1 g2))
+                      warning (YoungForMarriage (p, Date.time_elapsed g1 g2))
                     else loop l
                 | _ -> loop l
                 end

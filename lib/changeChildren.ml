@@ -86,7 +86,7 @@ let print_children conf base ipl =
        Wserver.printf "<li class=\"mt-3\">\n";
        Wserver.printf "<span class=\"ml-2\">%s"
          (reference conf base p (person_text conf base p));
-       Wserver.printf "%s</span>\n" (Date.short_dates_text conf base p);
+       Wserver.printf "%s</span>\n" (Date_text.short_dates_text conf base p);
        print_child_person conf base p;
        Wserver.printf "</li>\n")
     ipl;
@@ -104,7 +104,7 @@ let print_change conf base p =
     title false;
   Wserver.printf "%s" (Util.transl_a_of_b conf ""
     (reference conf base p (person_text conf base p)));
-  Wserver.printf " %s" (Date.short_dates_text conf base p);
+  Wserver.printf " %s" (Date_text.short_dates_text conf base p);
   Wserver.printf "</h2>\n";
   Wserver.printf "<form method=\"post\" action=\"%s\">\n" conf.command;
   Util.hidden_env conf;
@@ -144,7 +144,7 @@ let print_children_list conf base u =
             html_li conf;
             Wserver.printf "\n%s"
               (reference conf base p (person_text conf base p));
-            Wserver.printf "%s\n" (Date.short_dates_text conf base p))
+            Wserver.printf "%s\n" (Date_text.short_dates_text conf base p))
          (get_children des))
     (get_family u);
   Wserver.printf "</ul>\n"
@@ -156,7 +156,7 @@ let print_change_done conf base p =
   in
   Hutil.header conf title;
   Wserver.printf "\n%s" (reference conf base p (person_text conf base p));
-  Wserver.printf "%s\n" (Date.short_dates_text conf base p);
+  Wserver.printf "%s\n" (Date_text.short_dates_text conf base p);
   print_children_list conf base p;
   Hutil.trailer conf
 

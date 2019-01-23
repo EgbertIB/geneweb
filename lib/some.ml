@@ -200,7 +200,7 @@ let print_elem conf base is_surname (p, xl) =
          Wserver.printf "%s%s" (surname_without_particle base p) (surname_particle base p)
        else Wserver.printf "%s" (if p = "" then "?" else p);
        Wserver.printf "</a>";
-       Wserver.printf "%s" (Date.short_dates_text conf base x);
+       Wserver.printf "%s" (Date_text.short_dates_text conf base x);
        Wserver.printf "<em>";
        specify_homonymous conf base x true;
        Wserver.printf "</em>")
@@ -440,7 +440,7 @@ let print_branch conf base psn name =
             person_text_without_surname conf base p
           else person_text conf base p));
     Wserver.printf "</strong>";
-    Wserver.printf "%s" (Date.short_dates_text conf base p);
+    Wserver.printf "%s" (Date_text.short_dates_text conf base p);
     Wserver.printf "\n";
     if Array.length (get_family u) = 0 then ()
     else
@@ -465,12 +465,12 @@ let print_branch conf base psn name =
                       else person_text conf base p);
                    Wserver.printf "</em>"
                  end;
-                 Wserver.printf "%s" (Date.short_dates_text conf base p);
+                 Wserver.printf "%s" (Date_text.short_dates_text conf base p);
                  Wserver.printf "\n"
                end;
              Wserver.printf "  &amp;";
              Wserver.printf "%s\n"
-               (Date.short_marriage_date_text conf base fam p c);
+               (Date_text.short_marriage_date_text conf base fam p c);
              Perso.print_sosa conf base c true;
              Wserver.printf "<strong>";
              Wserver.printf "%s"
@@ -480,7 +480,7 @@ let print_branch conf base psn name =
                      "x"
                    else person_text conf base c));
              Wserver.printf "</strong>";
-             Wserver.printf "%s" (Date.short_dates_text conf base c);
+             Wserver.printf "%s" (Date_text.short_dates_text conf base c);
              Wserver.printf "\n";
              let children = get_children fam in
              begin match select with
