@@ -846,29 +846,26 @@ let print_dates conf base p =
         end
   | _ -> ()
 
+let rec compare_dmy dmy1 dmy2 =
+  match Pervasives.compare dmy1.year dmy2.year with
+  | 0 -> begin match Pervasives.compare dmy1.month dmy2.month with
+      | 0 -> begin match Pervasives.compare dmy1.day dmy2.day with
+          | 0 -> begin match dmy1.prec, dmy2.prec with
+            | (Sure, Sure) | (About, About) | (Maybe, Maybe) | (Before, Before) | (After, After) -> 0
+            | (OrYear d1, OrYear d2) | (YearInt d1, YearInt d2) -> compare_dmy (dmy_of_dmy2 d1) (dmy_of_dmy2 d2)
+            | ((Sure|About|Maybe|Before), After) | (Before, (Sure|About|Maybe)) -> -1
+            | (After, (Sure|About|Maybe|Before)) | ((Sure|About|Maybe), Before) -> 1
+            | _ -> 0
+            end
+          | x -> x
+        end
+      | x -> x
+    end
+  | x -> x
 
-(* ********************************************************************** *)
-(*  [Fonc] compare_date : date -> date -> int                             *)
-(** [Description] : Renvoie 0 si les deux dates sont égales, 1 si la
-                    première date est plus grande et -1 sinon.
-                    On ne tiens pas compte de la précision de la date.
-    [Args] :
-      - d1 : la première date
-      - d2 : la deuxième date
-    [Retour] : int
-    [Rem] : Exporté en clair hors de ce module.                           *)
-(* ********************************************************************** *)
 let compare_date d1 d2 =
   match d1, d2 with
-    Dgreg (dmy1, _), Dgreg (dmy2, _) ->
-      begin match Pervasives.compare dmy1.year dmy2.year with
-        0 ->
-          begin match Pervasives.compare dmy1.month dmy2.month with
-            0 -> Pervasives.compare dmy1.day dmy2.day
-          | x -> x
-          end
-      | x -> x
-      end
+  | Dgreg (dmy1, _), Dgreg (dmy2, _) -> compare_dmy dmy1 dmy2
   | Dgreg (_, _), Dtext _ -> 1
   | Dtext _, Dgreg (_, _) -> -1
   | Dtext _, Dtext _ -> 0

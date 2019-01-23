@@ -30,6 +30,14 @@ val before_date : dmy -> dmy -> bool
 (* return the day of the week given the date as parameter *)
 val get_wday : config -> date -> string
 
+(** [compare_dmy dmy1 dmy2]
+    Return [-1] if [dmy1] represents a date before [dmy2],
+    [1] if it represents a date after [dmy2].
+    Otherwise, return [0].
+ *)
+val compare_dmy : dmy -> dmy -> int
+
+(** [compare_date d1 d2] *)
 val compare_date : date -> date -> int
 
 (* Ajout pour l'API *)

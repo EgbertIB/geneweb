@@ -349,56 +349,10 @@ let parent_has_title conf base p =
   | _ -> false
 
 
-(* ********************************************************************* *)
-(*  [Fonc] date_included : dmy -> dmy -> dmy -> bool                     *)
-(** [Description] : d1 <= d <= d2
-    [Args] :
-      - d  : date
-      - d1 : date min
-      - d2 : date max
-    [Retour] :
-      - bool : renvoie d1 <= d <= d2.
-    [Rem] : Non exporté en clair hors de ce module.                      *)
-(* ********************************************************************* *)
+(** [date_included d d1 d2] is [d1 <= d <= d2] *)
 let date_included d d1 d2 =
-  (* Fonction générique de test: y <= x <= z *)
-  (* Le paramètre max permet de tester par   *)
-  (* rapport au nombre max de jour ou mois.  *)
-  let comp x y z max =
-    if y <= z then (y <= x) && (x <= z)
-    else if max > 0 then ((y <= x) && (x <= max)) || ((1 <= x) && (x <= z))
-    else false
-  in
-  let (d, m, y) = (d.day, d.month, d.year) in
-  let { day = d2 ; month = m2 ; year = y2 } = d2 in
-  match d1 with
-  | {day = 0; month = 0; year = 0} -> false
-  | {day = d1; month = 0; year = 0} ->
-    d2 <> 0 && m2 = 0 && y2 = 0 && d > 0 && comp d d1 d2 31
-  | {day = 0; month = m1; year = 0} ->
-    m2 <> 0 && d2 = 0 && y2 = 0 && m > 0 && comp m m1 m2 12
-  | {day = 0; month = 0; year = y1} ->
-    y2 <> 0 && d2 = 0 && m2 = 0 && comp y y1 y2 0
-  (* Impossible pour GeneWeb *)
-  | {day = d1; month = m1; year = 0} ->
-    d2 <> 0 && m2 <> 0 && y2 = 0
-    && d > 0
-    && m > 0
-    && comp (m * 100 + d) (m1 * 100 + d1) (m2 * 100 + d2) (12 * 100 + 31)
-  | {day = 0; month = m1; year = y1} ->
-    m2 <> 0 && y2 <> 0 && d2 = 0
-    && m > 0 && comp (y * 100 + m) (y1 * 100 + m1) (y2 * 100 + m2) 0
-  (* Impossible pour GeneWeb *)
-  | {day = d1; month = 0; year = y1} ->
-    d2 <> 0 && y2 <> 0 && m2 = 0
-    && d > 0 && y1 = y2 && comp d d1 d2 31
-  | {day = d1; month = m1; year = y1} ->
-    y2 <> 0 &&
-    comp
-      (y * 10000 + m * 100 + d)
-      (y1 * 10000 + m1 * 100 + d1)
-      (y2 * 10000 + m2 * 100 + d2)
-      0
+  Date.compare_dmy d1 d <= 0
+  && Date.compare_dmy d d2 <= 0
 
 (**/**) (* Divers filtres possibles. *)
 

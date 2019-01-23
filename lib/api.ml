@@ -360,19 +360,10 @@ let print_find_sosa conf base =
 let print_last_modified_persons conf base =
   let params = get_params conf Mext.parse_last_modifications in
   let filters = get_filters conf in
-  let wiz =
-    match params.M.Last_modifications.wizard with
-    | Some wiz -> wiz
-    | None -> ""
-  in
-  let max_res =
-    match params.M.Last_modifications.max_res with
-    | Some i -> Int32.to_int i
-    | None -> 10
-  in
+  let wiz = Opt.default "" params.M.Last_modifications.wizard in
+  let max_res = Opt.map_default 10 Int32.to_int params.M.Last_modifications.max_res in
   let range =
-    match params.M.Last_modifications.range with
-    | Some range ->
+    Opt.map (fun range ->
         let date_begin = range.M.Filter_date_range.date_begin in
         let dmy1 =
           { day = Int32.to_int date_begin.M.Filter_date.day;
@@ -388,41 +379,31 @@ let print_last_modified_persons conf base =
             prec = Sure; delta = 0 }
         in
         let prec = range.M.Filter_date_range.only_exact in
-        Some (dmy1, dmy2, prec)
-    | None -> None
+        (dmy1, dmy2, prec)
+      ) params.M.Last_modifications.range
+  in
+  let mk_date time =
+    (* time : 0000-00-00 00:00:00 *)
+    let y = int_of_string (String.sub time 0 4) in
+    let m = int_of_string (String.sub time 5 2) in
+    let d = int_of_string (String.sub time 8 2) in
+    let dmy =
+      { day = d; month = m; year = y; prec = Sure; delta = 0; }
+    in
+    Some (Dgreg (dmy, Dgregorian))
   in
   let is_time_included time =
-    match range with
-    | Some (date_begin, date_end, prec) ->
-        (* time : 0000-00-00 00:00:00 *)
-        let date =
-          let y = int_of_string (String.sub time 0 4) in
-          let m = int_of_string (String.sub time 5 2) in
-          let d = int_of_string (String.sub time 8 2) in
-          let dmy =
-            { day = d; month = m; year = y; prec = Sure; delta = 0; }
-          in
-          Some (Dgreg (dmy, Dgregorian))
-        in
-        is_date_included prec date date_begin date_end
-    | None -> true
+    Opt.map_default true
+      (fun (date_begin, date_end, prec) ->
+        is_date_included prec (mk_date time) date_begin date_end)
+      range
   in
   let date_before_interval time =
-    match range with
-    | Some (date_begin, _, prec) ->
-      (* time : 0000-00-00 00:00:00 *)
-      let date =
-        let y = int_of_string (String.sub time 0 4) in
-        let m = int_of_string (String.sub time 5 2) in
-        let d = int_of_string (String.sub time 8 2) in
-        let dmy =
-          { day = d; month = m; year = y; prec = Sure; delta = 0; }
-        in
-        Some (Dgreg (dmy, Dgregorian))
-      in
-      let dmy_zero = { day = 1; month = 1; year = 1970; prec = Sure; delta = 0; } in
-      is_date_included prec date dmy_zero date_begin
-    | None -> true
+    Opt.map_default true
+      (fun (date_begin, _, prec) ->
+         let dmy_zero = { day = 1; month = 1; year = 1970; prec = Sure; delta = 0; } in
+         is_date_included prec (mk_date time) dmy_zero date_begin)
+      range
   in
   let p_mem ip list =
     let rec loop list =
