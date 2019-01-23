@@ -282,7 +282,7 @@ let extract_henv conf base =
       let x =
         let first_name = p_first_name base p in
         let surname = p_surname base p in
-        if Util.accessible_by_key conf base p first_name surname then
+        if Util.accessible_by_key conf base p then
           ["pz", code_varenv (Name.lower first_name);
            "nz", code_varenv (Name.lower surname);
            "ocz", string_of_int (get_occ p)]

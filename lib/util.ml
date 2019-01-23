@@ -513,59 +513,39 @@ let strictly_after_private_years conf a =
   else if a.year < conf.private_years then false
   else a.month > 0 || a.day > 0
 
-let is_old_person conf p =
-  match
-    Adef.od_of_cdate p.birth, Adef.od_of_cdate p.baptism, p.death,
-    CheckItem.date_of_death p.death
-  with
-    _, _, NotDead, _ when conf.private_years > 0 -> false
-  | Some (Dgreg (d, _)), _, _, _ ->
-      let a = CheckItem.time_elapsed d conf.today in
-      strictly_after_private_years conf a
-  | _, Some (Dgreg (d, _)), _, _ ->
-      let a = CheckItem.time_elapsed d conf.today in
-      strictly_after_private_years conf a
-  | _, _, _, Some (Dgreg (d, _)) ->
-      let a = CheckItem.time_elapsed d conf.today in
-      strictly_after_private_years conf a
-  | None, None, DontKnowIfDead, None ->
-      p.access <> Private && conf.public_if_no_date
-  | _ -> false
+let authorized_age_internal get_access get_birth get_baptism get_death conf p =
+  let death = get_death p in
+  if death = NotDead then conf.private_years = 0
+  else
+    let check_date none = function
+      | Some (Dgreg (d, _)) ->
+        strictly_after_private_years conf (CheckItem.time_elapsed d conf.today)
+      | _ -> none ()
+    in
+    check_date
+      (fun () ->
+         check_date
+           (fun () ->
+              check_date
+                (fun () -> death = DontKnowIfDead && get_access p <> Private && conf.public_if_no_date)
+                (CheckItem.date_of_death death) )
+           (Adef.od_of_cdate (get_baptism p)) )
+      (Adef.od_of_cdate (get_birth p))
 
-let fast_auth_age conf p =
-  if conf.friend || conf.wizard || get_access p = Public then true
-  else if
-    conf.public_if_titles && get_access p = IfTitles && get_titles p <> []
-  then
-    true
-  else is_old_person conf (gen_person_of_person p)
+let authorized_age_aux =
+  authorized_age_internal
+    get_access
+    get_birth
+    get_baptism
+    get_death
 
-(* ********************************************************************** *)
-(*  [Fonc] authorized_age : config -> base -> person -> bool              *)
-(** [Description] : Calcul les droits de visualisation d'une personne en
-      fonction de son age.
-      Renvoie (dans l'ordre des tests) :
-        - Vrai si : magicien ou ami ou la personne est public
-        - Vrai si : la personne est en si_titre, si elle a au moins un
-                    titre et que public_if_title = yes dans le fichier gwf
-        - Faux si : la personne n'est pas décédée et private_years > 0
-        - Vrai si : la personne est plus agée (en fonction de la date de
-                    naissance ou de la date de baptème) que privates_years
-        - Faux si : la personne est plus jeune (en fonction de la date de
-                    naissance ou de la date de baptème) que privates_years
-        - Vrai si : la personne est décédée depuis plus de privates_years
-        - Faux si : la personne est décédée depuis moins de privates_years
-        - Vrai si : la personne a entre 80 et 120 ans et qu'elle n'est pas
-                    privée et public_if_no_date = yes
-        - Vrai si : la personne s'est mariée depuis plus de private_years
-        - Faux dans tous les autres cas
-    [Args] :
-      - conf : configuration de la base
-      - base : base de donnée
-      - p    : person
-    [Retour] : Vrai si on a les droits, Faux sinon.
-    [Rem] : Exporté en clair hors de ce module.                           *)
-(* ********************************************************************** *)
+let authorized_age_gen_aux =
+  authorized_age_internal
+    (fun x -> x.access)
+    (fun x -> x.birth)
+    (fun x -> x.baptism)
+    (fun x -> x.death)
+
 let authorized_age conf base p =
   conf.wizard
   || conf.friend
@@ -573,37 +553,16 @@ let authorized_age conf base p =
   || (conf.public_if_titles
       && get_access p = IfTitles
       && nobtit conf base p <> [])
-  || begin
-    let death = get_death p in
-    if death = NotDead then conf.private_years = 0
-    else
-      let check_date none = function
-        | Some (Dgreg (d, _)) ->
-          strictly_after_private_years conf (CheckItem.time_elapsed d conf.today)
-        | _ -> none ()
-      in
-      check_date
-        (fun () ->
-           check_date
-             (fun () ->
-                check_date
-                  (fun () ->
-                     (death = DontKnowIfDead && get_access p <> Private && conf.public_if_no_date)
-                     || begin
-                       let families = get_family p in
-                       let len = Array.length families in
-                       let rec loop i =
-                         i < len
-                         && check_date
-                           (fun () -> loop (i + 1))
-                           (Adef.od_of_cdate (get_marriage @@ foi base (Array.get families i)))
-                       in
-                       loop 0
-                     end)
-                  (CheckItem.date_of_death (get_death p)) )
-             (Adef.od_of_cdate (get_baptism p)) )
-        (Adef.od_of_cdate (get_birth p))
-  end
+  || authorized_age_aux conf p
+  || let families = get_family p in
+  let len = Array.length families in
+  let rec loop i =
+    i < len
+    && match Adef.od_of_cdate (get_marriage @@ foi base (Array.get families i)) with
+    | Some (Dgreg (d, _)) when strictly_after_private_years conf (CheckItem.time_elapsed d conf.today) -> true
+    | _ -> loop (i + 1 )
+  in
+  loop 0
 
 let is_restricted_person conf base p =
   conf.use_restrict
@@ -616,7 +575,7 @@ let is_restricted (conf : config) base ip =
 
 (* TODO: removed this from interface. Use foi only when you know what you are doing, and use pget otherwise. *)
 let is_hide_names conf p =
-  if conf.hide_names || get_access p = Private then true else false
+  conf.hide_names || get_access p = Private
 
 (* TODO: Make this the default way to access a person (and do the same with fget). *)
 let pget (conf : config) base ip =
@@ -624,7 +583,7 @@ let pget (conf : config) base ip =
   else
     let p = poi base ip in
     if is_restricted_person conf base p then
-      if is_hide_names conf p
+      if conf.hide_names
       then Gwdb.empty_person base ip
       else Gwdb.person_of_gen_person base
           ( { (Gwdb.empty_person base ip |> Gwdb.gen_person_of_person)
@@ -651,33 +610,14 @@ let is_hidden p = is_empty_string (get_surname p)
 let know base p =
   sou base (get_first_name p) <> "?" || sou base (get_surname p) <> "?"
 
-let is_public conf base p =
-  get_access p = Public ||
-  conf.public_if_titles && get_access p = IfTitles &&
-  nobtit conf base p <> [] ||
-  is_old_person conf (gen_person_of_person p)
-
-
-(* ********************************************************************** *)
-(*  [Fonc] accessible_by_key :
-             config -> base -> person -> string -> string -> bool         *)
-(** [Description] : Vrai si la personne est accessible par sa clé,
-                    Faux sinon.
-    [Args] :
-      - conf : configuration de la base
-      - base : base de donnée
-      - p    : person
-      - fn   : prénom de la personne
-      - sn   : patronyme de la personne
-    [Retour] :
-      - bool : Vrai si la personne est accessible par sa clé, faux sinon.
-    [Rem] : Exporté en clair hors de ce module.                           *)
-(* ********************************************************************** *)
-let accessible_by_key conf base p fn sn =
-  conf.access_by_key && not (fn = "?" || sn = "?") &&
-  (not (is_hide_names conf p) || is_public conf base p || conf.friend ||
-   conf.wizard)
-
+let accessible_by_key conf base p =
+  let fn = get_first_name p in
+  let sn = get_surname p in
+  conf.access_by_key
+  && not (conf.hide_names
+          || is_quest_string fn || is_empty_string fn
+          || is_quest_string sn || is_empty_string sn
+          || not (authorized_age conf base p))
 
 (* ********************************************************************** *)
 (*  [Fonc] acces_n : config -> base -> string -> person -> string         *)
@@ -695,7 +635,7 @@ let acces_n conf base n x =
   let first_name = p_first_name base x in
   let surname = p_surname base x in
   if surname = "" then ""
-  else if accessible_by_key conf base x first_name surname then
+  else if accessible_by_key conf base x then
     "p" ^ n ^ "=" ^ code_varenv (Name.lower first_name) ^ "&n" ^ n ^ "=" ^
     code_varenv (Name.lower surname) ^
     (if get_occ x <> 0 then "&oc" ^ n ^ "=" ^ string_of_int (get_occ x)
@@ -2712,7 +2652,7 @@ let wprint_hidden conf pref name valu =
 let wprint_hidden_person conf base pref p =
   let first_name = p_first_name base p in
   let surname = p_surname base p in
-  if accessible_by_key conf base p first_name surname then
+  if accessible_by_key conf base p then
     begin
       wprint_hidden conf pref "p" (Name.lower first_name);
       wprint_hidden conf pref "n" (Name.lower surname);

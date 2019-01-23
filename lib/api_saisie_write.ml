@@ -1049,7 +1049,7 @@ let compute_modification_status conf base ip ifam resp =
       let occ = if occ = 0 then None else Some (Int32.of_int occ) in
       let surname_str = Some (sou base (get_surname p)) in
       let first_name_str = Some (sou base (get_first_name p)) in
-      if not (Util.accessible_by_key conf base p first_name surname) ||
+      if not (Util.accessible_by_key conf base p) ||
          (surname = "" && first_name = "")
       then
         ("", "", None, index_person, surname_str, first_name_str)

@@ -392,25 +392,14 @@ let reduce_to_recent conf l =
     match l with
     | [] -> accu
     | p :: l ->
-        if Util.is_old_person tmp_conf (gen_person_of_person p) then
+        if Util.authorized_age_aux tmp_conf p then
           loop l accu
         else
           loop l (p :: accu)
   in loop l []
 
 
-(* *********************************************************************** *)
-(*  [Fonc] is_visible : config -> base -> person -> bool                   *)
-(** [Description] : Renvoie vrai si l'on peut afficher les informations
-                    d'une personne. Une personne est visible si elle n'est
-                    pas privée OU si elle n'est plus contemporaine.
-    [Args] :
-      - conf : configuration de la base
-      - base : base de donnée
-      - p    : person
-    [Retour] : string
-    [Rem] : Exporté en clair hors de ce module.                            *)
-(* *********************************************************************** *)
+(** [is_visible conf base p] *)
 let is_visible conf base p =
   let tmp_conf = {(conf) with wizard = false; friend = false} in
   Util.authorized_age tmp_conf base p
@@ -442,7 +431,7 @@ let is_recent conf p =
          (Mantis 1327) *)
       public_if_no_date = false}
   in
-  not (Util.is_old_person tmp_conf (gen_person_of_person p))
+  not (Util.authorized_age_aux tmp_conf p)
 
 
 (* ********************************************************************* *)

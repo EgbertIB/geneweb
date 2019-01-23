@@ -1427,7 +1427,7 @@ let print_mod o_conf base =
     let changed = U_Modify_person (o_p, Util.string_gen_person base p) in
     History.record conf base changed "mp";
     if not (is_quest_string p.surname) &&
-       not (is_quest_string p.first_name) && not (is_old_person conf p)
+       not (is_quest_string p.first_name) && not (authorized_age_gen_aux conf p)
     then
       Update.delete_topological_sort_v conf base;
     print_mod_ok conf base wl pgl p ofn osn oocc

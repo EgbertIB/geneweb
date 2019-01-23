@@ -48,16 +48,39 @@ val hidden_env : config -> unit
 val nobtit : config -> base -> person -> title list
 
 val strictly_after_private_years : config -> dmy -> bool
+
+(* FIXME: rename into [authorized_age] *)
+(**
+   [authorized_age_aux conf base p]
+   - Vrai si : la personne est plus agée (en fonction de la date de
+                    naissance ou de la date de baptème) que privates_years
+   - Faux si : la personne est plus jeune (en fonction de la date de
+                    naissance ou de la date de baptème) que privates_years
+   - Vrai si : la personne est décédée depuis plus de privates_years
+   - Faux si : la personne est décédée depuis moins de privates_years
+   - Vrai si : la personne a entre 80 et 120 ans et qu'elle n'est pas
+                    privée et public_if_no_date = yes
+   - Faux dans tous les autres cas
+*)
+val authorized_age_aux : config -> person -> bool
+
+val authorized_age_gen_aux : config -> (iper, istr) Def.gen_person -> bool
+
+(* FIXME: rename into [authorized_person] *)
+
+(** Check wizard/friend and access permissions and [authorized_age_aux conf base p] *)
 val authorized_age : config -> base -> person -> bool
-val is_old_person : config -> (iper, istr) gen_person -> bool
-val fast_auth_age : config -> person -> bool
 
 val start_with_vowel : string -> bool
 val know : base -> person -> bool
 val acces_n : config -> base -> string -> person -> string
 val acces : config -> base -> person -> string
 val wprint_hidden_person : config -> base -> string -> person -> unit
-val accessible_by_key : config -> base -> person -> string -> string -> bool
+
+
+(** [accessible_by_key conf base p]
+    Test if a person [p] is accessible by key (aka npoc) *)
+val accessible_by_key : config -> base -> person -> bool
 
 val geneweb_link : config -> string -> string -> string
 val wprint_geneweb_link : config -> string -> string -> unit

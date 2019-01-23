@@ -3585,9 +3585,7 @@ and eval_event_witness_relation_var conf base env (p, e) loc =
   | _ -> raise Not_found
 and eval_bool_person_field conf base env (p, p_auth) =
   function
-    "access_by_key" ->
-      Util.accessible_by_key conf base p (p_first_name base p)
-        (p_surname base p)
+  | "access_by_key" -> Util.accessible_by_key conf base p
   | "birthday" ->
       begin match p_auth, Adef.od_of_cdate (get_birth p) with
         true, Some (Dgreg (d, _)) ->

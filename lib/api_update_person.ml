@@ -491,7 +491,7 @@ let print_mod conf base mod_p =
          (fun () ->
            if not (is_quest_string p.surname) &&
               not (is_quest_string p.first_name) &&
-              not (is_old_person conf p)
+              not (authorized_age_gen_aux conf p)
            then
              Update.delete_topological_sort_v conf base
            else ())]
