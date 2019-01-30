@@ -423,23 +423,12 @@ let prev_sosa s =
 let get_sosa_person p =
   try Hashtbl.find sosa_ht (get_key_index p) with Not_found -> Sosa.zero
 
-(* ********************************************************************** *)
-(*  [Fonc] has_history : config -> string -> bool                         *)
-(** [Description] : Indique si l'individu a été modifiée.
-    [Args] :
-      - conf   : configuration de la base
-      - base   : arbre
-      - p      : person
-      - p_auth : indique si l'utilisateur est authentifié
-    [Retour] : Vrai si la personne a été modifiée, Faux sinon.
-    [Rem] : Exporté en clair hors de ce module.                           *)
-(* ********************************************************************** *)
-let has_history conf base p p_auth =
+let has_history conf base p =
   let fn = sou base (get_first_name p) in
   let sn = sou base (get_surname p) in
   let occ = get_occ p in
   let person_file = History_diff.history_file fn sn occ in
-  p_auth && Sys.file_exists (History_diff.history_path conf person_file)
+  Sys.file_exists (History_diff.history_path conf person_file)
 
 (* ******************************************************************** *)
 (*  [Fonc] get_single_sosa : config -> base -> person -> Sosa.t          *)
@@ -560,87 +549,6 @@ let get_death_text conf p p_auth =
   in
   died ^ " " ^ on_death_date
 
-(* ************************************************************************ *)
-(*  [Fonc] get_baptism_text : config -> base -> person -> bool -> string    *)
-(** [Description] : Retourne le texte sur le baptême de la personne
-    [Args] :
-      - conf : configuration de la base
-      - p    : la personne que l'on veut afficher
-      - p_auth : authentifié ou non
-    [Retour] :
-      - string
-    [Rem] : Exporté en clair hors de ce module.                             *)
-(* ************************************************************************ *)
-let get_baptism_text conf p p_auth =
-  let baptized =
-    if p_auth then
-      let is = index_of_sex (get_sex p) in transl_nth conf "baptized" is
-    else ""
-  in
-  let on_baptism_date =
-    let tmp_conf = {conf with cancel_links = true} in
-    match p_auth, Adef.od_of_cdate (get_baptism p) with
-      true, Some d ->
-        begin match p_getenv conf.base_env "long_date" with
-          Some "yes" ->
-            Date.string_of_ondate tmp_conf d ^ Date.get_wday tmp_conf d
-        | _ -> Date.string_of_ondate tmp_conf d
-        end
-    | _ -> ""
-  in
-  baptized ^ " " ^ on_baptism_date
-
-(* ************************************************************************ *)
-(*  [Fonc] get_birth_text : config -> person -> bool -> string    *)
-(** [Description] : Retourne le texte sur la naissance de la personne
-    [Args] :
-      - conf : configuration de la base
-      - p    : la personne que l'on veut afficher
-      - p_auth : authentifié ou non
-    [Retour] :
-      - string
-    [Rem] : Exporté en clair hors de ce module.                             *)
-(* ************************************************************************ *)
-let get_birth_text conf p p_auth =
-  let born =
-    if p_auth then
-      let is = index_of_sex (get_sex p) in transl_nth conf "born" is
-    else ""
-  in
-  let on_birth_date =
-    let tmp_conf = {conf with cancel_links = true} in
-    match p_auth, Adef.od_of_cdate (get_birth p) with
-      true, Some d ->
-        begin match p_getenv conf.base_env "long_date" with
-          Some "yes" ->
-            Date.string_of_ondate tmp_conf d ^ Date.get_wday tmp_conf d
-        | _ -> Date.string_of_ondate tmp_conf d
-        end
-    | _ -> ""
-  in
-  born ^ " " ^ on_birth_date
-
-(* ************************************************************************ *)
-(*  [Fonc] get_marriage_text : config -> fam -> bool -> string      *)
-(** [Description] : Retourne le texte sur la date de l'union.
-    [Args] :
-      - conf   : configuration de la base
-      - family : la famille concernée
-      - p_auth : authentifié ou non
-    [Retour] :
-      - string
-    [Rem] : Exporté en clair hors de ce module.                             *)
-(* ************************************************************************ *)
-let get_marriage_date_text conf fam p_auth =
-  let tmp_conf = {conf with cancel_links = true} in
-  match p_auth, Adef.od_of_cdate (get_marriage fam) with
-    true, Some d ->
-      begin match p_getenv conf.base_env "long_date" with
-        Some "yes" ->
-          Date.string_of_ondate tmp_conf d ^ Date.get_wday tmp_conf d
-      | _ -> Date.string_of_ondate tmp_conf d
-      end
-  | _ -> ""
 
 (* ************************************************************************ *)
 (*  [Fonc] get_burial_text : config -> person -> bool -> string     *)
@@ -3925,7 +3833,7 @@ and eval_bool_person_field conf base env (p, p_auth) =
   | "has_first_names_aliases" ->
       if not p_auth && is_hide_names conf p then false
       else get_first_names_aliases p <> []
-  | "has_history" -> has_history conf base p p_auth
+  | "has_history" -> has_history conf base p
   | "has_image" -> Util.has_image conf base p
   | "has_nephews_or_nieces" -> has_nephews_or_nieces conf base p
   | "has_nobility_titles" -> p_auth && nobtit conf base p <> []

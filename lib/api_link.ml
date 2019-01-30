@@ -7,6 +7,7 @@ module RC = Redis_sync.Client
 open Config
 open Def
 open Gwdb
+open Api_util
 
 let redis_host = ref "127.0.0.1"
 let redis_port = ref 6379
@@ -192,97 +193,47 @@ let piqi_date_of_date date =
       }
 
 let p_to_piqi_full_person conf base ip ip_spouse =
-  let baseprefix = conf.command in
-  let index = Int32.of_int (Adef.int_of_iper ip) in
   let p = Util.pget conf base ip in
-  let gen_p = Util.string_gen_person base (gen_person_of_person p) in
-  let surname = gen_p.surname in
-  let first_name = gen_p.first_name in
-  let sn = Name.lower surname in
-  let fn = Name.lower first_name in
-  let occ = Int32.of_int (get_occ p) in
-  let image = Opt.of_string gen_p.image in
-  let occupation = Opt.of_string gen_p.occupation in
-  let publicname = gen_p.public_name in
-  let qualifiers = gen_p.qualifiers in
-  (* TODO
-  let titles = Perso.nobility_titles_list conf base p in
-  let titles =
-    let tmp_conf = {(conf) with cancel_links = true} in
-    List.map (Perso.string_of_title tmp_conf base "" p) titles
-  in *)
-  let titles = [] in
-  let aliases = gen_p.aliases in
-  let sex =
-    match gen_p.sex with
-    | Male -> `male
-    | Female -> `female
-    | Neuter -> `unknown
-  in
-  let birth = Opt.map piqi_date_of_date (Adef.od_of_cdate gen_p.birth) in
-  let birth_place = Opt.of_string gen_p.birth_place in
-  let baptism = Opt.map piqi_date_of_date (Adef.od_of_cdate gen_p.baptism) in
-  let baptism_place = Opt.of_string gen_p.baptism_place in
-  let (death_type, death) =
-    match gen_p.death with
-    | NotDead -> (`not_dead, None)
-    | Death (_, cd) ->
-      let d = Adef.date_of_cdate cd in
-      (`dead, Some (piqi_date_of_date d))
-    | DeadYoung -> (`dead_young, None)
-    | DeadDontKnowWhen -> (`dead_dont_know_when, None)
-    | DontKnowIfDead -> (`dont_know_if_dead, None)
-    | OfCourseDead -> (`of_course_dead, None)
-  in
-  let death_place = Opt.of_string gen_p.death_place in
-  let burial =
-    match gen_p.burial with
-    | Buried cod | Cremated cod -> Opt.map piqi_date_of_date (Adef.od_of_cdate cod)
-    | _ -> None
-  in
-  let burial_place = Opt.of_string gen_p.burial_place in
-  let families =
-    Array.fold_right
-      (fun ifam accu ->
-        let isp = Gutil.spouse ip (foi base ifam) in
-        if isp = ip_spouse || ip_spouse = Adef.iper_of_int (-1) then
-          let baseprefix = conf.command in
-          let index = Int32.of_int (Adef.int_of_ifam ifam) in
-          let fl =
-            MLink.Family_link.({
-              baseprefix = baseprefix;
-              ifam = index;
-            })
-          in
-          fl :: accu
-        else accu)
-      (get_family p) []
-  in
-  {
-    MLink.Person.baseprefix = baseprefix;
-    ip = index;
-    n = sn;
-    p = fn;
-    oc = occ;
-    lastname = surname;
-    firstname = first_name;
-    image = image;
-    occupation = occupation;
-    public_name = Some publicname;
-    qualifiers = qualifiers;
-    titles = titles;
-    aliases = aliases;
-    sex = sex;
-    birth_date = birth;
-    birth_place = birth_place;
-    baptism_date = baptism;
-    baptism_place = baptism_place;
-    death_type = death_type;
-    death_date = death;
-    death_place = death_place;
-    burial_date = burial;
-    burial_place = burial_place;
-    families = families;
+  let lastname = to_piqi_surname base p in
+  let firstname = to_piqi_firstname base p in
+  let death_type, death_date = to_piqi_death_type_n_date_aux (Opt.map piqi_date_of_date) p in
+  let titles = [] in               (* FIXME *)
+  { MLink.Person.baseprefix = to_piqi_baseprefix conf.command p
+  ; ip = to_piqi_index p
+  ; n = to_piqi_sn lastname
+  ; p = to_piqi_fn firstname
+  ; oc = to_piqi_occ p
+  ; lastname
+  ; firstname
+  ; image = to_piqi_image_opt base p
+  ; occupation = to_piqi_occupation_opt base p
+  ; public_name = to_piqi_publicname base p
+  ; qualifiers = to_piqi_qualifiers base p
+  ; titles
+  ; aliases = to_piqi_aliases base p
+  ; sex = to_piqi_sex p
+  ; birth_date = to_piqi_date_aux piqi_date_of_date (get_birth p)
+  ; birth_place = to_piqi_birth_place_opt base p
+  ; baptism_date = to_piqi_date_aux piqi_date_of_date (get_baptism p)
+  ; baptism_place = to_piqi_baptism_place_opt base p
+  ; death_type = death_type
+  ; death_date
+  ; death_place = to_piqi_death_place_opt base p
+  ; burial_date =
+      to_piqi_date_aux piqi_date_of_date
+        (match get_burial p with Buried d | Cremated d -> d | _ -> Adef.cdate_None)
+  ; burial_place = to_piqi_burial_place_opt base p
+  ; families =
+      Array.fold_right
+        (fun ifam acc ->
+           let isp = Gutil.spouse ip (Util.fget conf base ifam) in
+           if isp = ip_spouse || ip_spouse = Adef.iper_of_int (-1) then
+             let baseprefix = conf.command in
+             { MLink.Family_link.baseprefix
+             ; ifam = to_piqi_ifam ifam
+             } :: acc
+           else acc)
+        (get_family p) []
   }
 
 let fam_to_piqi_full_family conf base ip ifam add_children =

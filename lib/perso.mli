@@ -39,12 +39,9 @@ val print_sosa : config -> base -> person -> bool -> unit
 
 val string_of_num : string -> Sosa.t -> string
 val get_linked_page : config -> base -> person -> string -> string
-val get_birth_text : config -> person -> bool -> string
-val get_baptism_text : config -> person -> bool -> string
 val get_death_text : config -> person -> bool -> string
 val get_burial_text : config -> person -> bool -> string
 val get_cremation_text : config -> person -> bool -> string
-val get_marriage_date_text : config -> family -> bool -> string
 
 val linked_page_text
   : Config.config
@@ -105,7 +102,7 @@ val nobility_titles_list :
        (Adef.date option * Adef.date option) list)
       list
 
-val has_history : config -> base -> person -> bool -> bool
+val has_history : config -> base -> person -> bool
 val has_possible_duplications : config -> base -> person -> bool
 
 val string_of_title :

@@ -7,6 +7,7 @@ open Config
 open Gwdb
 open Def
 open Util
+open Api_util
 open Api_update_util
 
 let reconstitute_family conf base mod_f =
@@ -143,17 +144,9 @@ let reconstitute_family conf base mod_f =
       | `create ->
           let fn = father.Mwrite.Person.firstname in
           let sn = father.Mwrite.Person.lastname in
-          let occ = Api_update_util.api_find_free_occ base fn sn in
-          (*
-          let occ = Api_update_util.find_free_occ base fn sn in
-          *)
-          (* On met à jour parce que si on veut le rechercher, *)
-          (* il faut qu'on connaisse son occ.                  *)
-          let () =
-            if occ = 0 then father.Mwrite.Person.occ <- None
-            else father.Mwrite.Person.occ <- Some (Int32.of_int occ)
-          in
-          (fn, sn, occ, Update.Create (sex, None), "", true)
+          father.Mwrite.Person.occ <-
+            Api_update_util.api_find_free_occ base fn sn ;
+          (fn, sn, Opt.map_default 0 Int32.to_int father.Mwrite.Person.occ, Update.Create (sex, None), "", true)
       | `link ->
           let ip = Int32.to_int father.Mwrite.Person.index in
           let p = poi base (Adef.iper_of_int ip) in
@@ -187,25 +180,13 @@ let reconstitute_family conf base mod_f =
       | `create_default_occ ->
           let fn = mother.Mwrite.Person.firstname in
           let sn = mother.Mwrite.Person.lastname in
-          let occ =
-            match mother.Mwrite.Person.occ with
-            | Some occ -> Int32.to_int occ
-            | None -> 0
-          in
+          let occ = of_piqi_occ_opt mother.Mwrite.Person.occ in
           (fn, sn, occ, Update.Create (sex, None), "", false)
       | `create ->
           let fn = mother.Mwrite.Person.firstname in
           let sn = mother.Mwrite.Person.lastname in
-          let occ = Api_update_util.api_find_free_occ base fn sn in
-          (*
-          let occ = Api_update_util.find_free_occ base fn sn in
-          *)
-          (* On met à jour parce que si on veut le rechercher, *)
-          (* il faut qu'on connaisse son occ.                  *)
-          let () =
-            if occ = 0 then mother.Mwrite.Person.occ <- None
-            else mother.Mwrite.Person.occ <- Some (Int32.of_int occ)
-          in
+          mother.Mwrite.Person.occ <- Api_update_util.api_find_free_occ base fn sn ;
+          let occ = of_piqi_occ_opt mother.Mwrite.Person.occ in
           (fn, sn, occ, Update.Create (sex, None), "", true)
       | `link ->
           let ip = Int32.to_int mother.Mwrite.Person.index in
@@ -217,15 +198,6 @@ let reconstitute_family conf base mod_f =
               Adef.int_of_iper (get_key_index p)
             else get_occ p
           in
-          (*
-          let fn = mother.Mwrite.Person.firstname in
-          let sn = mother.Mwrite.Person.lastname in
-          let occ =
-            match mother.Mwrite.Person.occ with
-            | Some occ -> Int32.to_int occ
-            | None -> 0
-          in
-          *)
           (fn, sn, occ, Update.Link, "", false)
     in
     [father; mother]
@@ -235,39 +207,17 @@ let reconstitute_family conf base mod_f =
       (fun child ->
          match child.Mwrite.Person_link.create_link with
          | `create_default_occ ->
-             let sex =
-               match child.Mwrite.Person_link.sex with
-               | `male -> Male
-               | `female -> Female
-               | `unknown -> Neuter
-             in
+             let sex = of_piqi_sex child.Mwrite.Person_link.sex in
              let fn = child.Mwrite.Person_link.firstname in
              let sn = child.Mwrite.Person_link.lastname in
-             let occ =
-               match child.Mwrite.Person_link.occ with
-               | Some occ -> Int32.to_int occ
-               | None -> 0
-             in
+             let occ = of_piqi_occ_opt child.Mwrite.Person_link.occ in
              (fn, sn, occ, Update.Create (sex, None), "", false)
          | `create ->
-             let sex =
-               match child.Mwrite.Person_link.sex with
-               | `male -> Male
-               | `female -> Female
-               | `unknown -> Neuter
-             in
+             let sex = of_piqi_sex child.Mwrite.Person_link.sex in
              let fn = child.Mwrite.Person_link.firstname in
              let sn = child.Mwrite.Person_link.lastname in
-             let occ = Api_update_util.api_find_free_occ base fn sn in
-             (*
-             let occ = Api_update_util.find_free_occ base fn sn in
-             *)
-             (* On met à jour parce que si on veut le rechercher, *)
-             (* il faut qu'on connaisse son occ.                  *)
-             let () =
-               if occ = 0 then child.Mwrite.Person_link.occ <- None
-               else child.Mwrite.Person_link.occ <- Some (Int32.of_int occ)
-             in
+             child.Mwrite.Person_link.occ <- Api_update_util.api_find_free_occ base fn sn ;
+             let occ = of_piqi_occ_opt child.Mwrite.Person_link.occ in
              (fn, sn, occ, Update.Create (sex, None), "", true)
          | `link ->
              let ip = Int32.to_int child.Mwrite.Person_link.index in

@@ -89,7 +89,6 @@ let print_info_base conf base =
   in
   let data = Mext.gen_infos_base info_base in
   print_result conf data
-;;
 
 
 (* ******************************************************************** *)
@@ -123,7 +122,7 @@ let print_loop conf base =
       (* Comme il y a une boucle, Perso.get_single_sosa ne va pas marcher *)
       (* mais la fonction ne sera pas appelée dans pers_to_piqi_person.   *)
       pers_to_piqi_person conf base !pers !base_loop
-        (Perso.get_single_sosa conf base) false
+        (Perso.get_single_sosa conf base)
     else
       let ref_pers =
         M.Reference_person.({
@@ -136,7 +135,6 @@ let print_loop conf base =
   in
   let data = data_person p in
   print_result conf data
-;;
 
 
 (* ******************************************************************** *)
@@ -163,14 +161,13 @@ let print_info_ind conf base =
         let p = pget conf base ip in
         if apply_filters_p conf filters (Perso.get_single_sosa conf base) p then
           pers_to_piqi_person
-            conf base p base_loop (Perso.get_single_sosa conf base) false
+            conf base p base_loop (Perso.get_single_sosa conf base)
         else
           empty_piqi_person conf ref_person base_loop
     | None -> empty_piqi_person conf ref_person base_loop
   in
   let data = data_person p in
   print_result conf data
-;;
 
 
 (* ******************************************************************** *)
@@ -204,7 +201,6 @@ let print_list_ref_person conf base =
     data_list_person_option conf base filters pl
   in
   print_result conf data
-;;
 
 
 (* ******************************************************************** *)
@@ -233,7 +229,6 @@ let print_ref_person_from_ip conf base =
   in
   let data = Mext.gen_reference_person ref_p in
   print_result conf data
-;;
 
 
 (**/**) (* API_FIRST_AVAILABLE_PERSON *)
@@ -249,39 +244,25 @@ let print_ref_person_from_ip conf base =
     [Rem] : Non exporté en clair hors de ce module.                         *)
 (* ************************************************************************ *)
 let print_first_available_person conf base =
-  let empty_ref =
-    M.Reference_person.({
-      n = "";
-      p = "";
-      oc = Int32.of_int 0;
-    })
-  in
   let rec loop i nb_ind =
-    if i = nb_ind - 1 then empty_ref
+    if i = nb_ind - 1 then { M.Reference_person.n = ""; p = ""; oc = 0l }
     else
-      let p = poi base (Adef.iper_of_int i) in
-      if is_hide_names conf p || is_empty_or_quest_name p ||
-         not (authorized_age conf base p)
-      then
-        loop (i + 1) nb_ind
+      let p = pget conf base (Adef.iper_of_int i) in
+      if get_key_index p = Adef.iper_of_int (-1)
+      then loop (i + 1) nb_ind
       else
-        let fn = Name.lower (sou base (get_first_name p)) in
-        let sn = Name.lower (sou base (get_surname p)) in
-        let occ = Int32.of_int (get_occ p) in
-        M.Reference_person.({
-          n = sn;
-          p = fn;
-          oc = occ;
-        })
+        { M.Reference_person.n = to_piqi_fn (to_piqi_surname base p)
+        ; p = to_piqi_fn (to_piqi_surname base p)
+        ; oc = to_piqi_occ p ;
+        }
   in
   let nb_ind = Gwdb.nb_of_persons base in
   let ref_p =
-    if nb_ind = 0 then empty_ref
+    if nb_ind = 0 then { M.Reference_person.n = ""; p = ""; oc = 0l }
     else loop 0 nb_ind
   in
   let data = Mext.gen_reference_person ref_p in
   print_result conf data
-;;
 
 
 (**/**) (* API_SOSA *)
@@ -340,7 +321,6 @@ let print_find_sosa conf base =
   in
   let data = Mext.gen_reference_person ref_p in
   print_result conf data
-;;
 
 
 (**/**) (* API_LAST_MODIFIED_PERSONS *)
@@ -463,8 +443,8 @@ let print_last_modified_persons conf base =
                             | _ ->
                                 (match Gutil.person_ht_find_all base key with
                                 | [ip] ->
-                                    let p = poi base ip in
-                                    if not (is_empty_or_quest_name p) &&
+                                    let p = pget conf base ip in
+                                    if not (get_key_index p = Adef.iper_of_int (-1)) &&
                                       apply_filters_p
                                         conf filters (Perso.get_sosa_person) p &&
                                       not (p_mem ip list)
@@ -486,7 +466,6 @@ let print_last_modified_persons conf base =
   in
   let data = conv_data_list_person conf base filters list in
   print_result conf data
-;;
 
 
 (**/**) (* API_LAST_VISITED_PERSONS *)
@@ -522,7 +501,6 @@ let print_last_visited_persons conf base =
   in
   let data = data_list_person conf base filters list in
   print_result conf data
-;;
 
 
 (**/**) (* API_MAX_ANCESTORS *)
@@ -631,7 +609,6 @@ let print_max_ancestors conf base =
   in
   let data = Mext.gen_reference_person ref_p in
   print_result conf data
-;;
 
 
 (**/**) (* API_IMAGE *)
@@ -643,12 +620,11 @@ let print_img conf base =
       let l = ref [] in
       let base_loop = has_base_loop conf base in
       let () = Perso.build_sosa_ht conf base in
-      let () = load_image_ht conf in
       for i = 0 to nb_of_persons base - 1 do
         let p = poi base (Adef.iper_of_int i) in
-        match Api_util.find_image_file conf base p with
+        match to_piqi_image_opt base p with
         | Some f ->
-            let p = pers_to_piqi_person_full conf base p base_loop Perso.get_sosa_person true in
+            let p = pers_to_piqi_person_full conf base p base_loop Perso.get_sosa_person in
             l := M.Full_image.({person = p; img = f;}) :: !l
         | None -> ()
       done;
@@ -666,12 +642,11 @@ let print_img conf base =
       let l = ref [] in
       let base_loop = has_base_loop conf base in
       let () = Perso.build_sosa_ht conf base in
-      let () = load_image_ht conf in
       for i = 0 to nb_of_persons base - 1 do
         let p = poi base (Adef.iper_of_int i) in
-        match Api_util.find_image_file conf base p with
+        match to_piqi_image_opt base p with
         | Some f ->
-            let p = pers_to_piqi_person_light conf base p base_loop Perso.get_sosa_person true in
+            let p = pers_to_piqi_person_light conf base p base_loop Perso.get_sosa_person in
             l := M.Image.({person = p; img = f;}) :: !l
         | None -> ()
       done;
@@ -684,7 +659,6 @@ let print_img conf base =
         let data = Mext.gen_list_images list in
         print_result conf data
     end
-;;
 
 (**/**) (* API_IMAGE_EXT *)
 
@@ -695,7 +669,6 @@ let print_img_ext conf base =
       let l = ref [] in
       let base_loop = has_base_loop conf base in
       let () = Perso.build_sosa_ht conf base in
-      let () = load_image_ht conf in
       for i = 0 to nb_of_persons base - 1 do
         let p = poi base (Adef.iper_of_int i) in
         let http = "http://" in
@@ -704,7 +677,7 @@ let print_img_ext conf base =
              String.length img > String.length http &&
                String.sub img 0 (String.length http) = http
         then
-          let p = pers_to_piqi_person_full conf base p base_loop Perso.get_sosa_person true in
+          let p = pers_to_piqi_person_full conf base p base_loop Perso.get_sosa_person in
           l := M.Full_image.({person = p; img = img;}) :: !l
       done;
       if filters.nb_results then
@@ -721,7 +694,6 @@ let print_img_ext conf base =
       let l = ref [] in
       let base_loop = has_base_loop conf base in
       let () = Perso.build_sosa_ht conf base in
-      let () = load_image_ht conf in
       for i = 0 to nb_of_persons base - 1 do
         let p = poi base (Adef.iper_of_int i) in
         let http = "http://" in
@@ -730,7 +702,7 @@ let print_img_ext conf base =
              String.length img > String.length http &&
                String.sub img 0 (String.length http) = http
         then
-          let p = pers_to_piqi_person_light conf base p base_loop Perso.get_sosa_person true in
+          let p = pers_to_piqi_person_light conf base p base_loop Perso.get_sosa_person in
           l := M.Image.({person = p; img = img;}) :: !l
       done;
       if filters.nb_results then
@@ -742,7 +714,6 @@ let print_img_ext conf base =
         let data = Mext.gen_list_images list in
         print_result conf data
     end
-;;
 
 
 (**/**) (* API_IMAGE_ALL *)
@@ -761,12 +732,12 @@ let print_img_all conf base =
         if not (is_empty_string (get_image p)) then
           let img = sou base (get_image p) in
           (* On commente pour la migration des portraits true => false *)
-          let p = pers_to_piqi_person_full conf base p base_loop Perso.get_sosa_person false in
+          let p = pers_to_piqi_person_full conf base p base_loop Perso.get_sosa_person in
           l := M.Full_image.({person = p; img = img;}) :: !l
         else
-          match Api_util.find_image_file conf base p with
+          match to_piqi_image_opt base p with
           | Some f ->
-              let p = pers_to_piqi_person_full conf base p base_loop Perso.get_sosa_person false in
+              let p = pers_to_piqi_person_full conf base p base_loop Perso.get_sosa_person in
               l := M.Full_image.({person = p; img = f;}) :: !l
           | None -> ()
       done;
@@ -790,12 +761,12 @@ let print_img_all conf base =
         let p = poi base (Adef.iper_of_int i) in
         if not (is_empty_string (get_image p)) then
           let img = sou base (get_image p) in
-          let p = pers_to_piqi_person_light conf base p base_loop Perso.get_sosa_person false in
+          let p = pers_to_piqi_person_light conf base p base_loop Perso.get_sosa_person in
           l := M.Image.({person = p; img = img;}) :: !l
         else
-          match Api_util.find_image_file conf base p with
+          match to_piqi_image_opt base p with
           | Some f ->
-              let p = pers_to_piqi_person_light conf base p base_loop Perso.get_sosa_person false in
+              let p = pers_to_piqi_person_light conf base p base_loop Perso.get_sosa_person in
               l := M.Image.({person = p; img = f;}) :: !l
           | None -> ()
       done;
@@ -808,7 +779,6 @@ let print_img_all conf base =
         let data = Mext.gen_list_images list in
         print_result conf data
     end
-;;
 
 
 (**/**) (* API_IMAGE_APP *)
@@ -828,7 +798,6 @@ let print_img_person conf base =
   let img_from_ip = M.Image_address.({img = img_addr}) in
   let data = Mext.gen_image_address img_from_ip in
   print_result conf data
-;;
 
 
 
@@ -853,8 +822,7 @@ let print_updt_image conf base =
           patch_person base p.key_index p
       | None -> () )
     pers_img_l;
-  Gwdb.commit_patches base;
-;;
+  Gwdb.commit_patches base
 
 
 (**/**) (* API_REMOVE_IMAGE_EXT *)
@@ -875,7 +843,6 @@ let print_remove_image_ext base =
       patch_person base p.key_index p
   done;
   Gwdb.commit_patches base
-;;
 
 
 (**/**) (* API_REMOVE_IMAGE_EXT_ALL *)
@@ -890,7 +857,6 @@ let print_remove_image_ext_all base =
       patch_person base p.key_index p
   done;
   Gwdb.commit_patches base
-;;
 
 
 
@@ -914,7 +880,6 @@ let f_scan conf base =
         pget conf base (Adef.iper_of_int !i)
       else raise Not_found
     end
-;;
 
 
 (* ********************************************************************* *)
@@ -953,7 +918,6 @@ let build_anniversary_pers_list conf base month f_scan =
   let list = Array.to_list tab in
   let list = List.map (fun (p, _) -> p) (List.flatten list) in
   reduce_to_recent conf list
-;;
 
 
 (* ********************************************************************* *)
@@ -985,7 +949,6 @@ let print_birthday conf base =
   let list = build_anniversary_pers_list conf base month (f_scan conf base) in
   let data = data_list_person conf base filters list in
   print_result conf data
-;;
 
 
 (**/**) (* API_CHECK_BASE *)
@@ -1026,14 +989,13 @@ let print_base_warnings conf base =
   in
   let base_loop = has_base_loop conf base in
   let () = Perso.build_sosa_ht conf base in
-  let () = load_image_ht conf in
   List.iter
     (Api_warnings.add_error_to_piqi_warning_list
-       conf base base_loop Perso.get_sosa_person true)
+       conf base base_loop Perso.get_sosa_person)
     !errors;
   List.iter
     (Api_warnings.add_warning_to_piqi_warning_list
-       conf base base_loop Perso.get_sosa_person true)
+       conf base base_loop Perso.get_sosa_person)
     warnings;
   (* On propage les modifications pour les warnings ChangedOrderOf... *)
   List.iter
@@ -1059,7 +1021,6 @@ let print_base_warnings conf base =
       Mext.gen_base_warnings base_warnings
   in
   print_result conf data
-;;
 
 
 (**/**) (* Récupération de toute une base. *)
@@ -1086,7 +1047,6 @@ let print_all_persons conf base =
   done;
   let data = data_list_person conf base filters (List.rev !list) in
   print_result conf data
-;;
 
 
 let print_all_families conf base =
@@ -1118,7 +1078,6 @@ let print_all_families conf base =
       Mext.gen_list_full_families list
   in
   print_result conf data
-;;
 
 
 module StringMap =
@@ -1127,7 +1086,6 @@ module StringMap =
       type t = string;;
       let compare = Gutil.alphabetic_order ;;
      end)
-;;
 
 module IperSort =
   Set.Make
@@ -1143,7 +1101,6 @@ module IperSort =
         else cmp;;
 *)
      end)
-;;
 
 let print_all_full_person conf base =
   let base_loop = has_base_loop conf base in
@@ -1156,7 +1113,6 @@ let print_all_full_person conf base =
   let () = load_couples_array base in
   let () = load_unions_array base in
   let () = load_descends_array base in
-  let () = load_image_ht conf in
 (*  let l = ref IperSort.empty in*)
   let index_map = ref StringMap.empty in
   let add_to_map k v =
@@ -1181,9 +1137,7 @@ let print_all_full_person conf base =
       add_to_map sn i;
       (*      let fn = sou base (get_first_name p) in*)
       (*      l := IperSort.add (sn, fn) !l;*)
-      let p =
-        pers_to_piqi_person_full conf base p base_loop Perso.get_sosa_person true
-      in
+      let p = pers_to_piqi_person_full conf base p base_loop Perso.get_sosa_person in
       let data = Mext.gen_full_person p in
       let data = data `pb in
       Printf.fprintf oc "%s" data;
@@ -1287,8 +1241,7 @@ let print_all_full_person conf base =
 *)
 
   Util.html conf ;
-  Wserver.printf "Gagné !!!";
-;;
+  Wserver.printf "Gagné !!!"
 
 
 (**/**) (* Version app *)
@@ -1312,7 +1265,6 @@ module NameSort =
           else compare fn1 fn2
         else compare sn1 sn2;;
      end)
-;;
 
 module NameSortMap =
   Map.Make
@@ -1320,7 +1272,6 @@ module NameSortMap =
       type t = string ;;
       let compare = compare ;;
      end)
-;;
 
 let intSetTab = ref (Array.make 1 0);;
 
@@ -1330,7 +1281,6 @@ module IntSet =
       type t = int;;
       let compare x y = compare !intSetTab.(x) !intSetTab.(y);;
      end)
-;;
 
 
 (*
@@ -1370,7 +1320,6 @@ let print_export_info conf export_directory =
       (* IO.write_i32 oc timestamp; *)
       close_out oc;
   | None -> ()
-;;
 
 
 (*
@@ -1419,7 +1368,6 @@ let print_export_person conf export_directory =
       close_out oc_dat;
       close_out oc_inx;
   | _ -> ()
-;;
 
 
 (*
@@ -1450,7 +1398,7 @@ let print_export_family conf export_directory =
       output_binary_int oc_dat 0;
       for i = 0 to nb_of_families base - 1 do
         let ifam = Adef.ifam_of_int i in
-        let fam_app = fam_to_piqi_app_family base ifam in
+        let fam_app = fam_to_piqi_app_family conf base ifam in
         let data = Mext_app.gen_family fam_app in
         let data = data `pb in
         (* Longueur de la famille puis données de la famille *)
@@ -1467,7 +1415,6 @@ let print_export_family conf export_directory =
       close_out oc_dat;
       close_out oc_inx;
   | _ -> ()
-;;
 
 
 (*
@@ -1516,7 +1463,6 @@ let print_person_note conf export_directory =
       close_out oc_dat;
       close_out oc_inx;
   | _ -> ()
-;;
 
 
 (*
@@ -1565,7 +1511,6 @@ let print_family_note conf export_directory =
       close_out oc_dat;
       close_out oc_inx;
   | _ -> ()
-;;
 
 
 let export_img conf base =
@@ -1591,7 +1536,6 @@ let export_img conf base =
           ignore (Unix.waitpid [] pid)
       | None -> ()
   done
-;;
 
 
 (*
@@ -1637,7 +1581,6 @@ let build_relative_name base p =
   let list = add_from_list list (get_first_names_aliases p) in
   let list = add_from_list list (get_surnames_aliases p) in
   List.rev list
-;;
 
 
 
@@ -1782,7 +1725,6 @@ let print_index_search conf export_directory =
 
     with Sys_error _ -> ()
   end
-;;
 
 
 (*
@@ -1826,7 +1768,6 @@ let print_ascends_index conf export_directory =
       done;
       close_out oc;
   | _ -> ()
-;;
 
 
 let print_export conf base =
@@ -1835,8 +1776,6 @@ let print_export conf base =
   let () = load_couples_array base in
   let () = load_unions_array base in
   let () = load_descends_array base in
-
-  let () = load_image_ht conf in
 
   (*
      On créé X processus pour l'export :
@@ -1904,9 +1843,7 @@ let print_export conf base =
     try Unix.rmdir tmp_export_directory with Unix.Unix_error (_, _, _) -> ()
   in
 
-
-  Util.html conf ;
-;;
+  Util.html conf
 
 
 (**/**) (* Version app, synchro !!! *)
@@ -1918,7 +1855,6 @@ module IntIdSet =
       type t = int;;
       let compare = compare;;
      end)
-;;
 
 open Database;;
 
@@ -1985,7 +1921,6 @@ let full_synchro conf synchro timestamp =
   match !last_import with
   | Some last_mod -> if timestamp < last_mod then true else false
   | _ -> false
-;;
 
 
 let print_synchro_patch_mobile conf base =
@@ -2097,7 +2032,7 @@ let print_synchro_patch_mobile conf base =
             List.iter
               (fun i ->
                 let ifam = Adef.ifam_of_int i in
-                let fam_app = fam_to_piqi_app_family base ifam in
+                let fam_app = fam_to_piqi_app_family conf base ifam in
                 let data = Mext_app.gen_family fam_app in
                 let data = data `pb in
                 (* id, longueur de la famille puis données de la famille *)
@@ -2230,8 +2165,7 @@ let print_synchro_patch_mobile conf base =
     try Unix.rmdir tmp_export_directory with Unix.Unix_error (_, _, _) -> ()
   in
 
-  Util.html conf ;
-;;
+  Util.html conf
 
 
 let print_export_search conf base =
@@ -2272,8 +2206,7 @@ let print_export_search conf base =
     try Unix.rmdir tmp_export_directory with Unix.Unix_error (_, _, _) -> ()
   in
 
-  Util.html conf ;
-;;
+  Util.html conf
 
 
 (*
@@ -2449,8 +2382,7 @@ let print_export conf base =
 *)
 
 
-  Util.html conf ;
-;;
+  Util.html conf
 *)
 
 

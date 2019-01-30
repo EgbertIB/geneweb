@@ -255,29 +255,23 @@ let sort_person_list base pl =
            else c)
     pl
 
-let find_free_occ base f s _i =
-  let ipl = persons_of_name base (f ^ " " ^ s) in
+let find_free_occ base f s i =
   let first_name = Name.lower f in
   let surname = Name.lower s in
-  let list_occ =
-    let rec loop list =
-      function
-        ip :: ipl ->
-          let p = poi base ip in
-          if not (List.mem (get_occ p) list) &&
-             first_name = Name.lower (p_first_name base p) &&
-             surname = Name.lower (p_surname base p)
-          then
-            loop (get_occ p :: list) ipl
-          else loop list ipl
-      | [] -> list
-    in
-    loop [] ipl
+  let list =
+    List.fold_left
+      (fun acc ip ->
+         let p = poi base ip in
+         if not (List.mem (get_occ p) acc)
+         && first_name = Name.lower (p_first_name base p)
+         && surname = Name.lower (p_surname base p)
+         then get_occ p :: acc else acc)
+      [] (persons_of_name base (f ^ " " ^ s))
   in
-  let list_occ = List.sort compare list_occ in
-  let rec loop cnt1 =
-    function
-      cnt2 :: list -> if cnt1 = cnt2 then loop (cnt1 + 1) list else cnt1
-    | [] -> cnt1
+  let list = List.sort compare list in
+  let rec loop acc = function
+    | occ :: list when occ <= i || acc = occ -> loop (occ + 1) list
+    | _ -> acc
   in
-  loop 0 list_occ
+  loop 0 list
+

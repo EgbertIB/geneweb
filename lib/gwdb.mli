@@ -71,6 +71,7 @@ val gen_person_of_person : person -> (iper, istr) Def.gen_person
 val gen_ascend_of_ascend : person -> ifam Def.gen_ascend
 val gen_union_of_union : person -> ifam Def.gen_union
 
+val get_ifam : family -> ifam
 val get_comment : family -> istr
 val get_divorce : family -> Def.divorce
 val get_fevents : family -> fam_event list

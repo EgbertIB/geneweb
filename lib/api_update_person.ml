@@ -29,14 +29,15 @@ let reconstitute_person conf base mod_p =
   (* pour lui changer son occ, par un occ qui existe déjà,  *)
   (* il faut lui calculer le prochain occ de libre.         *)
   let occ =
+    Opt.map_default 0 Int32.to_int @@
     match mod_p.Mwrite.Person.create_link with
     | `create ->
-        let fn = mod_p.Mwrite.Person.firstname in
-        let sn = mod_p.Mwrite.Person.lastname in
-        Api_update_util.api_find_free_occ base fn sn
+      let fn = mod_p.Mwrite.Person.firstname in
+      let sn = mod_p.Mwrite.Person.lastname in
+      Api_update_util.api_find_free_occ base fn sn
     | _ ->
-        (* Cas par défaut, i.e. modifier personne sans changer le occ. *)
-        Opt.map_default 0 Int32.to_int mod_p.Mwrite.Person.occ
+      (* Cas par défaut, i.e. modifier personne sans changer le occ. *)
+      mod_p.Mwrite.Person.occ
   in
   let image = Opt.map_default "" only_printable mod_p.Mwrite.Person.image in
   let first_names_aliases =

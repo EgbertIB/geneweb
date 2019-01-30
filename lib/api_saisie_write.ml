@@ -1607,76 +1607,33 @@ let print_add_family_ok conf base =
   let data = compute_modification_status conf base ip ifam resp in
   print_result conf data
 
+let to_piqi_spouses conf base p =
+  Array.fold_right
+    (fun ifam acc ->
+       let cpl = foi base ifam in
+       let sp = poi base (Gutil.spouse (get_key_index p) cpl) in
+       { Mwrite.Family_spouse.index_family = to_piqi_ifam ifam
+       ; index_person = to_piqi_iper (get_key_index sp)
+       ; sex = to_piqi_sex sp
+       ; lastname = to_piqi_surname base sp
+       ; firstname = to_piqi_firstname base sp
+       ; dates = short_dates_text_opt conf sp
+       ; image = to_piqi_image_opt base sp
+       ; sosa = to_piqi_sosa p
+       } :: acc)
+    (get_family p) []
 
-(* ************************************************************************ *)
-(*  [Fonc] print_mod_family_request : config -> base -> EditFamily          *)
-(** [Description] :
-    [Args] :
-      - conf : configuration de la base
-      - base : base de donnée
-    [Retour] :
-      - EditFamily : les informations du template.
-*)
-(* ************************************************************************ *)
 let print_mod_family_request conf base =
   let params = get_params conf Mext_write.parse_add_child_request in
-  let ip = Int32.to_int params.Mwrite.Add_child_request.index in
-  let ip = Adef.iper_of_int ip in
+  let ip = of_piqi_iper params.Mwrite.Add_child_request.index in
   let p = poi base ip in
-  let spouses =
-    Array.fold_right
-      (fun ifam accu ->
-         let cpl = foi base ifam in
-         let isp = Gutil.spouse ip cpl in
-         let sp = poi base isp in
-         let index_family = Int32.of_int (Adef.int_of_ifam ifam) in
-         let index_person = Int32.of_int (Adef.int_of_iper isp) in
-         let sex =
-           match get_sex sp with
-           | Male -> `male
-           | Female -> `female
-           | Neuter -> `unknown
-         in
-         let lastname = sou base (get_surname sp) in
-         let firstname = sou base (get_first_name sp) in
-         let dates = Opt.of_string @@ Api_saisie_read.short_dates_text conf base sp in
-         let image =
-           Opt.of_string @@
-           let img = sou base (get_image sp) in
-           if img <> "" then img
-           else if Api_util.find_image_file conf base sp <> None
-           then "1"
-           else ""
-         in
-         let sosa =
-           let sosa_nb = Perso.get_single_sosa conf base sp in
-           if Sosa.eq sosa_nb Sosa.zero then `no_sosa
-           else if Sosa.eq sosa_nb Sosa.one then `sosa_ref
-           else `sosa
-         in
-         let family_spouse =
-           {
-             Mwrite.Family_spouse.index_family;
-             index_person;
-             sex;
-             lastname;
-             firstname;
-             dates ;
-             image ;
-             sosa ;
-           }
-         in
-         family_spouse :: accu)
-      (get_family p) []
-  in
+  let spouses = to_piqi_spouses conf base p in
   let first_family =
     match get_family p with
     | [||] -> None
     | families ->
       let ifam = Array.get families 0 in
       let fam = foi base ifam in
-      let person_lastname = sou base (get_surname p) in
-      let person_firstname = sou base (get_first_name p) in
       let family = Api_update_util.fam_to_piqi_mod_family conf base ifam fam in
       let (p_father, p_mother) =
         if get_sex p = Male then (p, poi base (Gutil.spouse ip fam))
@@ -1687,7 +1644,9 @@ let print_mod_family_request conf base =
       (* Mise à jour des parents dans la famille. *)
       family.Mwrite.Family.father <- father ;
       family.Mwrite.Family.mother <- mother ;
-      Some { Mwrite.Edit_family.person_lastname ; person_firstname ; family }
+      Some { Mwrite.Edit_family.person_lastname = to_piqi_surname base p
+           ; person_firstname = to_piqi_firstname base p
+           ; family }
   in
   print_result conf
     (Mext_write.gen_edit_family_request
@@ -2196,57 +2155,10 @@ let print_add_parents_ok conf base =
 (* ************************************************************************ *)
 let print_add_child conf base =
   let params = get_params conf Mext_write.parse_add_child_request in
-  let ip = Int32.to_int params.Mwrite.Add_child_request.index in
+  let ip = of_piqi_iper params.Mwrite.Add_child_request.index in
   let ifam = params.Mwrite.Add_child_request.index_family in
-  let ip = Adef.iper_of_int ip in
   let p = poi base ip in
-  let family_spouse =
-    List.fold_right
-      (fun ifam accu ->
-         let cpl = foi base ifam in
-         let isp = Gutil.spouse ip cpl in
-         let sp = poi base isp in
-         let index_family = Int32.of_int (Adef.int_of_ifam ifam) in
-         let index_person = Int32.of_int (Adef.int_of_iper isp) in
-         let sex =
-           match get_sex sp with
-           | Male -> `male
-           | Female -> `female
-           | Neuter -> `unknown
-         in
-         let surname = sou base (get_surname sp) in
-         let first_name = sou base (get_first_name sp) in
-         let dates = Api_saisie_read.short_dates_text conf base sp in
-         let image =
-           let img = sou base (get_image sp) in
-           if img <> "" then img
-           else if Api_util.find_image_file conf base sp <> None
-           then "1"
-           else ""
-         in
-         let sosa =
-           let sosa_nb = Perso.get_single_sosa conf base sp in
-           if Sosa.eq sosa_nb Sosa.zero then `no_sosa
-           else if Sosa.eq sosa_nb Sosa.one then `sosa_ref
-           else `sosa
-         in
-         let family_spouse =
-           {
-             Mwrite.Family_spouse.index_family = index_family;
-             index_person = index_person;
-             sex = sex;
-             lastname = surname;
-             firstname = first_name;
-             dates = if dates = "" then None else Some dates;
-             image = if image = "" then None else Some image;
-             sosa = sosa;
-           }
-         in
-         family_spouse :: accu)
-      (Array.to_list (get_family p)) []
-  in
-  let surname = sou base (get_surname p) in
-  let first_name = sou base (get_first_name p) in
+  let family_spouse = to_piqi_spouses conf base p in
   let empty_child = Gwdb.empty_person base (Adef.iper_of_int (-1)) in
   let child = Api_update_util.pers_to_piqi_mod_person conf base empty_child in
   (* On supprime le digest car on créé un enfant *)
@@ -2275,12 +2187,11 @@ let print_add_child conf base =
   let child_surname = infer_surname conf base p ifam in
   child.Mwrite.Person.lastname <- child_surname;
   let add_child =
-    Mwrite.Add_child.({
-      person_lastname = surname;
-      person_firstname = first_name;
-      family_spouse = family_spouse;
-      child = child;
-    })
+    { Mwrite.Add_child.person_lastname = to_piqi_surname base p
+    ; person_firstname = to_piqi_firstname base p
+    ; family_spouse = family_spouse
+    ; child = child;
+    }
   in
   let data = Mext_write.gen_add_child add_child in
   print_result conf data

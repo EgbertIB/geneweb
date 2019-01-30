@@ -657,7 +657,8 @@ let fget conf base ifam =
     then Gwdb.empty_family base @@ Adef.ifam_of_int (-1)
     else fam
 
-let string_gen_person base p = Futil.map_person_ps (fun p -> p) (sou base) p
+let string_gen_person base p =
+  Futil.map_person_ps (fun p -> p) (sou base) p
 
 let string_gen_family base fam =
   Futil.map_family_ps (fun p -> p) (sou base) fam
