@@ -1128,29 +1128,11 @@ let print_result conf data =
   Util.html ~content_type conf ;
   Wserver.printf "%s" data
 
-
-(**/**) (* Fonctions de transformation person <=> piqi person *)
-
-(* ********************************************************************* *)
-(*  [Fonc] piqi_ref_person_to_person :
-      base ->  Reference_person -> option person                         *)
-(** [Description] : Renvoie une option personne à partir d'une référence
-                    piqi person.
-    [Args] :
-      - base : base de donnée
-      - ref_person : Reference_person
-    [Retour] :
-      - option person : Retourne une option personne.
-    [Rem] : Non exporté en clair hors de ce module.                      *)
-(* ********************************************************************* *)
-(* FIXME: use pget *)
-let piqi_ref_person_to_person base ref_person =
+let piqi_ref_person_to_person conf base ref_person =
   let sn = ref_person.M.Reference_person.n in
   let fn = ref_person.M.Reference_person.p in
   let occ = ref_person.M.Reference_person.oc in
-  match Gwdb.person_of_key base fn sn (Int32.to_int occ) with
-  | Some ip -> Some (poi base ip)
-  | None -> None
+  Opt.map (pget conf base) (Gwdb.person_of_key base fn sn (Int32.to_int occ))
 
 (** Only [n], [p] and [oc] get filled *)
 let empty_piqi_person_light conf ref_person base_loop =

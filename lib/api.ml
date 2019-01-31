@@ -2426,7 +2426,7 @@ let print_notification_birthday conf base =
     | `descend_great_grand_parent -> (3, -4, 3)
   in
   let ip_proprio =
-    match piqi_ref_person_to_person base ref_p with
+    match piqi_ref_person_to_person conf base ref_p with
     | Some p -> get_key_index p
     | None -> Adef.iper_of_int (-1)
   in

@@ -453,7 +453,7 @@ let print_graph_asc conf base =
   let filters = get_filters conf in
   let ref_person = params.M.Graph_params.person in
   let (nodes, edges, families) =
-    match piqi_ref_person_to_person base ref_person with
+    match piqi_ref_person_to_person conf base ref_person with
     | Some p ->
         let max_gen = 12 in
         let nb_gen =
@@ -619,7 +619,7 @@ let print_graph_asc_lia conf base =
   let filters = get_filters conf in
   let ref_person = params.M.Graph_params.person in
   let (nodes, edges, families) =
-    match piqi_ref_person_to_person base ref_person with
+    match piqi_ref_person_to_person conf base ref_person with
     | Some p ->
         let max_gen = 12 in
         let nb_gen =
@@ -728,7 +728,7 @@ let print_graph_desc conf base =
   let filters = get_filters conf in
   let ref_person = params.M.Graph_params.person in
   let (nodes, edges, families) =
-    match piqi_ref_person_to_person base ref_person with
+    match piqi_ref_person_to_person conf base ref_person with
     | Some p ->
         let max_gen = 12 in
         let nb_gen =
@@ -841,8 +841,8 @@ let print_graph_rel conf base =
   let ref_p1 = params.M.Graph_rel_params.person1 in
   let ref_p2 = params.M.Graph_rel_params.person2 in
   let (nodes, edges, families) =
-    match (piqi_ref_person_to_person base ref_p1,
-           piqi_ref_person_to_person base ref_p2) with
+    match (piqi_ref_person_to_person conf base ref_p1,
+           piqi_ref_person_to_person conf base ref_p2) with
     | (Some p1, Some p2) ->
         let by_marr = true in
         let rel =
@@ -892,8 +892,8 @@ let print_cpl_relation conf base =
   let ref_p2 = params.M.Cpl_rel_params.person2 in
 (*  let base_loop = has_base_loop conf base in*)
   let list =
-    match (piqi_ref_person_to_person base ref_p1,
-           piqi_ref_person_to_person base ref_p2) with
+    match (piqi_ref_person_to_person conf base ref_p1,
+           piqi_ref_person_to_person conf base ref_p2) with
     | (Some p1, Some p2) ->
         let by_marr = true in
         let rel =
