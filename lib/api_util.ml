@@ -1465,9 +1465,8 @@ let pers_to_piqi_app_person conf base p =
           | Perso.Fevent (Efam_Name s) -> (None, Some (sou base s))
           | Perso.Fevent name -> (Some (to_piqi_fevent_aux name), None)
         in
-        let date = Opt.map piqi_date_of_date (Adef.od_of_cdate date) in
         let witnesses =
-          Array.map
+          Mutil.array_to_list_map
             (fun (ip, wk) ->
                let witness_type =
                  match wk with
@@ -1481,20 +1480,15 @@ let pers_to_piqi_app_person conf base p =
                }))
             w
         in
-        let index_spouse =
-          match isp with
-          | Some ip -> Some (Int32.of_int (Adef.int_of_iper ip))
-          | None -> None
-        in
         { Mapp.Event.name
-        ; text = text;
-          date = date;
-          place = to_piqi_string_opt_aux base place;
-          reason = None;
-          note = to_piqi_string_opt_aux base note ;
-          src = to_piqi_string_opt_aux base src ;
-          witnesses = Array.to_list witnesses;
-          index_spouse = index_spouse;
+        ; text
+        ; date = Opt.map piqi_date_of_date (Adef.od_of_cdate date)
+        ; place = to_piqi_string_opt_aux base place
+        ; reason = None
+        ; note = to_piqi_string_opt_aux base note
+        ; src = to_piqi_string_opt_aux base src
+        ; witnesses
+        ; index_spouse = Opt.map to_piqi_iper isp
         })
       (Perso.events_list conf base p)
   in
