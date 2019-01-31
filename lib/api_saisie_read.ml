@@ -165,6 +165,25 @@ let convert_wiki_notes_to_html_notes conf base env wiki_notes separator_string =
     [Rem] : Non exporté en clair hors de ce module.                           *)
 (* ************************************************************************** *)
 
+let has_more_infos conf base p more_info gen max_gen =
+  match more_info with
+  | Root -> false
+  | Siblings -> Array.length (get_family p) > 0
+  | Children ->               (* FIXME *)
+    gen = max_gen - 1 && Array.length (get_family p) > 0
+  | Ancestor ->
+    let has_parents = get_parents p <> None in
+    (gen = max_gen - 1 && has_parents) ||
+    (fst (List.fold_left
+            (fun (children_or_spouses, nb_fam) ifam ->
+               let nb_fam = succ nb_fam in
+               let fam = fget conf base ifam in
+               let children = get_children fam in
+               (children_or_spouses || (gen > 1 && Array.length children > 1) || nb_fam > 1,
+                nb_fam))
+            (false, 0) (Array.to_list (get_family p))))
+  | Spouse ->
+    (get_parents p <> None) || Array.length (get_family p) > 1
 
 (** [pers_to_piqi_person_tree conf base p more_info gen max_gen base_prefix]
     [base_prefix] name of the tree (may be different from base with LIA)
@@ -178,26 +197,7 @@ let pers_to_piqi_person_tree conf base p more_info gen max_gen base_prefix =
   let fn = to_piqi_fn (to_piqi_firstname base p) in
   let firstname, lastname = person_firstname_surname_txt base p in
   let dates = short_dates_text conf p in
-  let has_more_infos =
-    match more_info with
-    | Root -> false
-    | Siblings -> Array.length (get_family p) > 0
-    | Children ->               (* FIXME *)
-      gen = max_gen - 1 && Array.length (get_family p) > 0
-    | Ancestor ->
-      let has_parents = get_parents p <> None in
-      (gen = max_gen - 1 && has_parents) ||
-      (fst (List.fold_left
-              (fun (children_or_spouses, nb_fam) ifam ->
-                 let nb_fam = succ nb_fam in
-                 let fam = fget conf base ifam in
-                 let children = get_children fam in
-                 (children_or_spouses || (gen > 1 && Array.length children > 1) || nb_fam > 1,
-                  nb_fam))
-              (false, 0) (Array.to_list (get_family p))))
-    | Spouse ->
-      (get_parents p <> None) || Array.length (get_family p) > 1
-  in
+
   { Mread.Person_tree.index = to_piqi_index p
   ; sex = to_piqi_sex p
   ; lastname
@@ -208,7 +208,7 @@ let pers_to_piqi_person_tree conf base p more_info gen max_gen base_prefix =
   ; dates = Opt.of_string dates
   ; image = to_piqi_image_opt base p
   ; sosa = sosa
-  ; has_more_infos
+  ; has_more_infos = has_more_infos conf base p more_info gen max_gen
   ; baseprefix = to_piqi_baseprefix base_prefix p
   }
 
@@ -1261,14 +1261,6 @@ let pers_to_piqi_person conf base p base_prefix is_main_person =
   ; fiche_person_person = None;
     }
 
-let fill_ref_if_is_main_person conf base is_main_person =
-  if is_main_person then
-    match Util.find_sosa_ref conf base with
-      | Some ref -> (Some (Int32.of_int (Adef.int_of_iper (get_key_index ref))), Some (pers_to_piqi_person conf base ref conf.command false))
-      | None -> (None, None)
-  else
-    (None, None)
-
 let get_burial_date p = match get_burial p with
   | Buried d | Cremated d -> Adef.od_of_cdate d
   | _ -> None
@@ -1311,8 +1303,14 @@ let rec pers_to_piqi_fiche_person conf base p base_prefix is_main_person nb_asc 
   let has_relations = if is_main_person then has_relations conf base p is_main_person else false in
   (* Returns simple person attributes only when nb of desc is 0. *)
   let return_simple_attributes = (nb_desc_max == 0) in
-  let (ref_index, ref_person) = fill_ref_if_is_main_person conf base is_main_person in
-
+  let (ref_index, ref_person) =
+    if is_main_person then
+      match Util.find_sosa_ref conf base with
+      | Some r -> ( Some (to_piqi_iper (get_key_index r))
+                  , Some (pers_to_piqi_person conf base r conf.command false) )
+      | None -> (None, None)
+    else (None, None)
+  in
   (* Fields shared by all the members of the family. *)
   piqi_fiche_person.Mread.Fiche_person.birth_date_raw <-
     Opt.map (string_of_date_raw conf) (Adef.od_of_cdate @@ get_birth p) ;
@@ -2613,30 +2611,6 @@ let pers_to_piqi_person_tree_full conf base p more_info gen max_gen base_prefix 
     in
     to_piqi_titles fn base p
   in
-  (* FIXME: factorize *)
-  let has_more_infos =
-    match more_info with
-    | Root -> false
-    | Siblings -> Array.length (get_family p) > 0
-    | Children ->
-      gen = max_gen - 1 && Array.length (get_family p) > 0
-    | Ancestor ->
-      let has_parents = get_parents p <> None in
-      (gen = max_gen - 1 && has_parents) ||
-      (fst (List.fold_left
-              (fun (children_or_spouses, nb_fam) ifam ->
-                 let nb_fam = succ nb_fam in
-                 let fam = foi base ifam in
-                 let children = get_children fam in
-                 (children_or_spouses ||
-                  (gen > 1 && Array.length children > 1) ||
-                  nb_fam > 1,
-                  nb_fam))
-              (false, 0) (Array.to_list (get_family p))))
-    | Spouse ->
-      let has_parents = get_parents p <> None in
-      has_parents || Array.length (get_family p) > 1
-  in
   { Mread.Person_tree_full.index = to_piqi_index p
   ; sex = to_piqi_sex p
   ; lastname = surname
@@ -2668,9 +2642,9 @@ let pers_to_piqi_person_tree_full conf base p more_info gen max_gen base_prefix 
   ; psources = to_piqi_psources_opt base p
   ; titles = titles
   ; visible_for_visitors = is_visible conf base p
-  ; has_more_infos = has_more_infos
+  ; has_more_infos = has_more_infos conf base p more_info gen max_gen
   ; baseprefix = to_piqi_baseprefix base_prefix p
-  } 
+  }
 
 (* ********************************************************************* *)
 (*  [Fonc] fam_to_piqi_family_tree :
