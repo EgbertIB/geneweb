@@ -1957,21 +1957,16 @@ let print_add_parents_ok conf base =
       let imoth = Adef.iper_of_int @@ Int32.to_int mod_mother.Mwrite.Person.index in
       let families = get_family (poi base ifath) in
       let len = Array.length families in
-      try
-        (* Should test compatibility of events and set a warning flag if PossibleDuplicateFam *)
-        let ifam =
-          let rec loop i =
-            if i = len then raise Not_found
-            else
-              let fam = foi base families.(i) in
-              if (get_father fam = ifath && get_mother fam = imoth)
-              then families.(i)
-              else loop (i + 1)
-          in
-          loop 0
-        in
-        Some ifam
-      with Not_found -> None
+      (* Should test compatibility of events and set a warning flag if PossibleDuplicateFam *)
+      let rec loop i =
+        if i = len then None
+        else
+          let fam = foi base families.(i) in
+          if (get_father fam = ifath && get_mother fam = imoth)
+          then Some families.(i)
+          else loop (i + 1)
+      in
+      loop 0
     else None
   in
   (* If both parents are linked, and no extra information is provided,
