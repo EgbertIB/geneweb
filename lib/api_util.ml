@@ -1547,7 +1547,7 @@ let pers_to_piqi_app_person conf base p =
 
 let fam_to_piqi_app_family conf base ifam =
   let f = fget conf base ifam in
-  let index = to_piqi_ifam ifam in (* FIXME!!!! fget can return a family with dummy ifam *)
+  let index = to_piqi_ifam (get_ifam f) in
   let (divorce_type, divorce_date) =
     to_piqi_divorce_type_n_date_aux piqi_date_of_date f
   in
