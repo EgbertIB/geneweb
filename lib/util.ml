@@ -1,4 +1,3 @@
-(* $Id: util.ml,v 5.130 2007-09-12 09:58:44 ddr Exp $ *)
 (* Copyright (c) 1998-2007 INRIA *)
 
 open Config
@@ -622,25 +621,25 @@ let is_hide_names conf p =
 (* TODO: Make this the default way to access a person (and do the same with fget). *)
 let pget (conf : config) base ip =
   let dummy_iper = Adef.iper_of_int (-1) in
-  if ip = dummy_iper then Gwdb.empty_person base dummy_iper
+  if ip = dummy_iper then let () = print_endline __LOC__ in Gwdb.empty_person base dummy_iper
   else if conf.use_restrict
-  then
+  then let () = print_endline __LOC__ in
     if base_visible_get base (is_restricted_aux conf base) (Adef.int_of_iper ip)
-    then Gwdb.empty_person base dummy_iper
-    else poi base ip
-  else
+    then let () = print_endline __LOC__ in Gwdb.empty_person base dummy_iper
+    else let () = print_endline __LOC__ in poi base ip
+  else let () = print_endline __LOC__ in
     let p = poi base ip in
     if is_restricted_aux conf base p
-    then
-      if conf.hide_names || get_access p = Private
-      then Gwdb.empty_person base dummy_iper
-      else Gwdb.person_of_gen_person base
+    then let () = print_endline __LOC__ in
+      if conf.hide_names || let () = print_endline __LOC__ in get_access p = Private
+      then let () = print_endline __LOC__ in Gwdb.empty_person base dummy_iper
+      else let () = print_endline __LOC__ in Gwdb.person_of_gen_person base
           ( { (Gwdb.empty_person base ip |> Gwdb.gen_person_of_person)
               with first_name = (Gwdb.get_first_name p)
                  ; surname = (Gwdb.get_surname p) }
           , Gwdb.gen_ascend_of_ascend p
           , Gwdb.gen_union_of_union p)
-    else p
+    else let () = print_endline __LOC__ in p
 
 let fget conf base ifam =
   let fam = foi base ifam in
@@ -2399,34 +2398,18 @@ let limited_image_size max_wid max_hei fname size =
   | None -> None
 
 let find_person_in_env conf base suff =
+  let return p = if is_hidden p then None else Some p in
   match p_getint conf.env ("i" ^ suff) with
-    Some i ->
-      if i >= 0 && i < nb_of_persons base then
-        let p = pget conf base (Adef.iper_of_int i) in
-        if is_hidden p then None else Some p
-      else None
+  | Some i -> print_endline __LOC__ ; return (pget conf base (Adef.iper_of_int i))
   | None ->
-      match
-        p_getenv conf.env ("p" ^ suff), p_getenv conf.env ("n" ^ suff)
-      with
-        Some p, Some n ->
-          let occ =
-            match p_getint conf.env ("oc" ^ suff) with
-              Some oc -> oc
-            | None -> 0
-          in
-          begin match person_of_key base p n occ with
-            Some ip ->
-              let p = pget conf base ip in
-              if is_hidden p then None
-              else if
-                not (is_hide_names conf p) || authorized_age conf base p
-              then
-                Some p
-              else None
-          | None -> None
-          end
-      | _ -> None
+    match p_getenv conf.env ("p" ^ suff), p_getenv conf.env ("n" ^ suff) with
+    | Some p, Some n ->
+      let occ = Opt.default 0 (p_getint conf.env ("oc" ^ suff)) in
+      begin match person_of_key base p n occ with
+        | Some ip -> print_endline __LOC__ ; return (pget conf base ip)
+        | None -> print_endline __LOC__ ; None
+      end
+    | _ -> print_endline __LOC__ ; None
 
 let person_exists conf base (fn, sn, oc) =
   match p_getenv conf.base_env "red_if_not_exist" with
