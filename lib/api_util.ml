@@ -16,7 +16,7 @@ open Gwdb
 open Util
 open Api_def
 
-let to_piqi_pevent = function
+let to_piqi_pevent_aux = function
   | Epers_Birth -> `epers_birth
   | Epers_Baptism -> `epers_baptism
   | Epers_Death -> `epers_death
@@ -67,9 +67,13 @@ let to_piqi_pevent = function
   | Epers_ScellentSpouseLDS -> `epers_scellentspouselds
   | Epers_VenteBien -> `epers_ventebien
   | Epers_Will -> `epers_will
-  | Epers_Name _ -> `epers_custom
+  | Epers_Name _ -> assert false
 
-let to_piqi_fevent = function
+let to_piqi_pevent = function
+  | Epers_Name _ -> `epers_custom
+  | x -> to_piqi_pevent_aux x
+
+let to_piqi_fevent_aux = function
   | Efam_Marriage -> `efam_marriage
   | Efam_NoMarriage -> `efam_no_marriage
   | Efam_NoMention -> `efam_no_mention
@@ -82,7 +86,11 @@ let to_piqi_fevent = function
   | Efam_MarriageLicense -> `efam_marriage_license
   | Efam_PACS -> `efam_pacs
   | Efam_Residence -> `efam_residence
+  | Efam_Name _ -> assert false
+
+let to_piqi_fevent = function
   | Efam_Name _ -> `efam_custom
+  | x -> to_piqi_fevent_aux x
 
 let to_piqi_sex p =
   match get_sex p with
