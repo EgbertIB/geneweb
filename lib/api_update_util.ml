@@ -867,7 +867,7 @@ let pers_to_piqi_mod_person conf base p =
          let (pevent_type, event_perso) =
            match evt.epers_name with
            | Epers_Name n -> (None, Some (sou base n))
-           | x -> (Some (to_piqi_pevent x), None)
+           | x -> (Some (to_piqi_pevent_aux x), None)
          in
          let witnesses =
            List.map
@@ -885,10 +885,7 @@ let pers_to_piqi_mod_person conf base p =
                 }))
              (Array.to_list evt.epers_witnesses)
          in
-         { Mwrite.Pevent.pevent_type  =
-            Opt.map (function `efam_custom | `epers_custom -> assert false
-                            | x -> Obj.magic x) (* FIXME!!!!! *)
-              pevent_type
+         { Mwrite.Pevent.pevent_type
          ; date = Opt.map piqi_date_of_date @@ Adef.od_of_cdate evt.epers_date
          ; place = to_piqi_string_opt_aux base evt.epers_place
          ; reason = None

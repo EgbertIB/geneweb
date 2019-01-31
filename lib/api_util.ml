@@ -1461,9 +1461,9 @@ let pers_to_piqi_app_person conf base p =
         let (name, text) =
           match name with
           | Perso.Pevent (Epers_Name s) -> (None, Some (sou base s))
-          | Perso.Pevent name -> (Some (to_piqi_pevent name), None)
+          | Perso.Pevent name -> (Some (to_piqi_pevent_aux name), None)
           | Perso.Fevent (Efam_Name s) -> (None, Some (sou base s))
-          | Perso.Fevent name -> (Some (to_piqi_fevent name), None)
+          | Perso.Fevent name -> (Some (to_piqi_fevent_aux name), None)
         in
         let date = Opt.map piqi_date_of_date (Adef.od_of_cdate date) in
         let witnesses =
@@ -1486,12 +1486,8 @@ let pers_to_piqi_app_person conf base p =
           | Some ip -> Some (Int32.of_int (Adef.int_of_iper ip))
           | None -> None
         in
-        {
-          Mapp.Event.name =
-            Opt.map (function `efam_custom | `epers_custom -> assert false
-                            | x -> Obj.magic x) (* FIXME!!!!! *)
-              name;
-          text = text;
+        { Mapp.Event.name
+        ; text = text;
           date = date;
           place = to_piqi_string_opt_aux base place;
           reason = None;
