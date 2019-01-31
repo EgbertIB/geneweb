@@ -1178,18 +1178,6 @@ let fill_titles_with_links conf base p =
   let tmp_conf = {(conf) with cancel_links = false} in
   List.map (Perso.string_of_title tmp_conf base "" p) (Perso.nobility_titles_list conf base p)
 
-let fill_linked_page_if_is_main_person conf base p is_main_person =
-  if is_main_person then
-    (
-    Perso.get_linked_page conf base p "BIBLIO",
-    Perso.get_linked_page conf base p "BNOTE",
-    Perso.get_linked_page conf base p "DEATH",
-    Perso.get_linked_page conf base p "HEAD",
-    Perso.get_linked_page conf base p "OCCU"
-    )
-  else
-    ("", "", "", "", "")
-
 (* ************************************************************************** *)
 (*  [Fonc] pers_to_piqi_person : config -> base -> person -> string -> Person *)
 (** [Description] : Retourne à partir d'une person (gwdb) une Person (piqi)
@@ -1214,8 +1202,11 @@ let pers_to_piqi_person conf base p base_prefix is_main_person =
   let (father, mother) = fill_parents conf base p base_prefix in
   let lastname = to_piqi_surname base p in
   let firstname = to_piqi_firstname base p in
-  {
-    Mread.Person.type_ = `simple
+  let titles =                  (* FIXME ??? *)
+    Perso.nobility_titles_list conf base p
+    |> List.map (Perso.string_of_title { conf with cancel_links = true } base "" p)
+  in
+  { Mread.Person.type_ = `simple
   ; index = to_piqi_index p
   ; sex = to_piqi_sex p
   ; lastname
@@ -1254,7 +1245,7 @@ let pers_to_piqi_person conf base p base_prefix is_main_person =
   ; notes = if is_main_person then fill_pnotes conf base p else None
   ; psources = if is_main_person then fill_psources conf base p else None
   ; has_sources = has_sources p
-  ; titles = [] (* FIXME to_piqi_titles conf base p *)
+  ; titles
   ; related = get_related_piqi conf base p base_prefix has_relations pers_to_piqi_simple_person simple_relation_person_constructor
   ; rparents = get_rparents_piqi conf base p base_prefix has_relations pers_to_piqi_simple_person simple_relation_person_constructor
   ; father = father
@@ -1300,7 +1291,17 @@ let rec pers_to_piqi_fiche_person conf base p base_prefix is_main_person nb_asc 
   in
   let (death_type, death_date, death_date_conv, death_date_cal) = fill_death conf p in
   (* Linked links (family book). *)
-  let (linked_page_biblio, linked_page_bnote, linked_page_death, linked_page_head, linked_page_occu) = if not simple_graph_info then fill_linked_page_if_is_main_person conf base p is_main_person else ("", "", "", "", "") in
+  let (linked_page_biblio, linked_page_bnote, linked_page_death, linked_page_head, linked_page_occu) =
+    if is_main_person && not simple_graph_info
+    then
+      ( Perso.get_linked_page conf base p "BIBLIO"
+      , Perso.get_linked_page conf base p "BNOTE"
+      , Perso.get_linked_page conf base p "DEATH"
+      , Perso.get_linked_page conf base p "HEAD"
+      , Perso.get_linked_page conf base p "OCCU")
+    else
+      ("", "", "", "", "")
+  in
   let pers_to_piqi_fiche_person_only conf base p base_prefix =
     pers_to_piqi_fiche_person conf base p base_prefix false 0 0 0 0 false simple_graph_info no_event
   in
